@@ -10,7 +10,7 @@ from middlewares.admin import require_active_admin
 from database import get_db
 
 router = APIRouter(
-    prefix="/cv/admin",
+    prefix="/admin",
     tags=["Admin"],
     dependencies=[Depends(require_active_admin)],  # applies to all routes in this router
 )
