@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import uvicorn
+from fastapi.middleware.cors import CORSMiddleware
 from app.routes.cv_routes import router as cv_router
-from app.routes.health_routes import router as health_router
 
 app = FastAPI(
     title="CV Automation Workflow API",
@@ -9,7 +9,14 @@ app = FastAPI(
     version="1.0.0",
 )
 
-app.include_router(health_router)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True,
+)
+
 app.include_router(cv_router)
 
 if __name__ == "__main__":

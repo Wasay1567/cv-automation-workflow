@@ -29,6 +29,11 @@ class UserRole(str, Enum):
     advisor = "advisor"
     admin = "admin"
 
+class UserStatus(str, Enum):
+    active = "active"
+    inactive = "inactive"
+    rejected = "rejected"
+
 
 class CVStatus(str, Enum):
     draft = "draft"
@@ -53,8 +58,14 @@ class User(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    password_hash = Column(String(255), nullable=False)
+    clerk_user_id = Column(String(255), unique=True, nullable=False, index=True)
     role = Column(SQLEnum(UserRole, name="user_role"), nullable=False)
+    status = Column(
+        SQLEnum(UserStatus, name="user_status"),
+        default=UserStatus.active,
+        nullable=False,
+        index=True
+    )
     department = Column(String(150), index=True, nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
@@ -95,6 +106,7 @@ class CVSubmission(Base):
     academics = relationship("Academic", back_populates="cv", cascade="all, delete")
     internships = relationship("Internship", back_populates="cv", cascade="all, delete")
     industrial_visits = relationship("IndustrialVisit", back_populates="cv", cascade="all, delete")
+    fyp = relationship("FYP", uselist=False, back_populates="cv", cascade="all, delete")
     certificates = relationship("Certificate", back_populates="cv", cascade="all, delete")
     achievements = relationship("Achievement", back_populates="cv", cascade="all, delete")
     skills = relationship("Skill", back_populates="cv", cascade="all, delete")
