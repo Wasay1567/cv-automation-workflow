@@ -1,7 +1,8 @@
 import os
 import json
 from fastapi import APIRouter, Request, HTTPException, Depends
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from svix.webhooks import Webhook, WebhookVerificationError
 
 from app.database import get_db
@@ -13,7 +14,7 @@ CLERK_WEBHOOK_SECRET = os.getenv("CLERK_WEBHOOK_SECRET")
 
 
 @router.post("/webhooks/clerk")
-async def clerk_webhook(request: Request, db: Session = Depends(get_db)):
+async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
     payload = await request.body()
     headers = request.headers
@@ -60,7 +61,7 @@ async def clerk_webhook(request: Request, db: Session = Depends(get_db)):
         )
 
         db.add(user)
-        db.commit()
+        await db.commit()
 
     # ============================
     # USER UPDATED
@@ -68,13 +69,14 @@ async def clerk_webhook(request: Request, db: Session = Depends(get_db)):
 
     elif event_type == "user.updated":
 
-        user = db.query(User).filter(
-            User.clerk_user_id == clerk_user_id
-        ).first()
+        result = await db.execute(
+            select(User).where(User.clerk_user_id == clerk_user_id)
+        )
+        user = result.scalar_one_or_none()
 
         if user:
             user.email = email
-            db.commit()
+            await db.commit()
 
     # ============================
     # USER DELETED
@@ -82,12 +84,13 @@ async def clerk_webhook(request: Request, db: Session = Depends(get_db)):
 
     elif event_type == "user.deleted":
 
-        user = db.query(User).filter(
-            User.clerk_user_id == clerk_user_id
-        ).first()
+        result = await db.execute(
+            select(User).where(User.clerk_user_id == clerk_user_id)
+        )
+        user = result.scalar_one_or_none()
 
         if user:
             user.status = UserStatus.inactive
-            db.commit()
+            await db.commit()
 
     return {"status": "success"}
