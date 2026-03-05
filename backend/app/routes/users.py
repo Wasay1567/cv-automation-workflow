@@ -15,7 +15,7 @@ class SyncUserRequest(BaseModel):
     role: Literal["student", "advisor"]
 
 router = APIRouter(
-    prefix="/",
+    prefix="",
     tags=["User"],
     dependencies=[Depends(get_current_user)],  # applies to all routes in this router
 )

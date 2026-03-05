@@ -11,7 +11,7 @@ def authenticate_user(request):
     try:
         request_state = clerk_sdk.authenticate_request(
             request, 
-            AuthenticateRequestOptions(authorized_parties=["http://localhost:5173"], jwt_key=os.getenv("JWT_KEY"))
+            AuthenticateRequestOptions(authorized_parties=["http://localhost:8080"], jwt_key=os.getenv("JWT_KEY"))
         )
         if not request_state.is_signed_in:
             raise HTTPException(status_code=401, detail="Invalid token")

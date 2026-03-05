@@ -22,5 +22,8 @@ def init_db():
     )
 
 async def get_db():
+    if AsyncSessionLocal is None:
+        init_db()
+
     async with AsyncSessionLocal() as session:
         yield session

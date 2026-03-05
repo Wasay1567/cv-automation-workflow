@@ -1,6 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from services.email_service import EmailService
+from fastapi.concurrency import run_in_threadpool
 from models import User, UserRole, UserStatus
 
 async def get_pending_advisors(db: AsyncSession):
@@ -35,6 +36,11 @@ async def approve_advisor(advisor_id: str, db: AsyncSession):
 
     advisor.status = UserStatus.active
     await db.commit()
+    await run_in_threadpool(
+        EmailService.send_advisor_approval_email,
+        advisor.email,
+        advisor.email.split("@")[0]
+    )
     return {"message": "Advisor approved successfully"}
 
 async def reject_advisor(advisor_id: str, db: AsyncSession):

@@ -1,16 +1,21 @@
 import os
-import json
 from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from svix.webhooks import Webhook, WebhookVerificationError
 
-from app.database import get_db
-from app.models import User, UserRole, UserStatus
+from database import get_db
+from models import User, UserRole, UserStatus
 
 router = APIRouter()
 
 CLERK_WEBHOOK_SECRET = os.getenv("CLERK_WEBHOOK_SECRET")
+UNIVERSITY_EMAIL_DOMAIN = ".cloud.neduet.edu.pk"
+
+
+def is_university_email(email: str) -> bool:
+    return email.lower().endswith(UNIVERSITY_EMAIL_DOMAIN)
 
 
 @router.post("/webhooks/clerk")
@@ -53,15 +58,43 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         else:
             status = UserStatus.active
 
+        if not is_university_email(email):
+            return {
+                "status": "ignored",
+                "reason": "invalid_email_domain",
+                "detail": f"Only '{UNIVERSITY_EMAIL_DOMAIN}' emails are allowed",
+            }
+
+        existing_result = await db.execute(
+            select(User).where(User.clerk_user_id == clerk_user_id)
+        )
+        existing_user = existing_result.scalar_one_or_none()
+
+        if existing_user:
+            existing_user.email = email
+            existing_user.role = role
+            existing_user.status = status
+            try:
+                await db.commit()
+            except IntegrityError:
+                await db.rollback()
+                raise HTTPException(status_code=409, detail="User data violates database constraints")
+            return {"status": "success", "message": "User already existed and was updated"}
+
         user = User(
             clerk_user_id=clerk_user_id,
             email=email,
             role=role,
-            status=status
+            status=status,
         )
 
         db.add(user)
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError:
+            await db.rollback()
+            raise HTTPException(status_code=409, detail="User data violates database constraints")
+        print(f"Created user {email} with role {role.value} and status {status.value}")
 
     # ============================
     # USER UPDATED
@@ -75,8 +108,18 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         user = result.scalar_one_or_none()
 
         if user:
+            if not is_university_email(email):
+                return {
+                    "status": "ignored",
+                    "reason": "invalid_email_domain",
+                    "detail": f"Only '{UNIVERSITY_EMAIL_DOMAIN}' emails are allowed",
+                }
             user.email = email
-            await db.commit()
+            try:
+                await db.commit()
+            except IntegrityError:
+                await db.rollback()
+                raise HTTPException(status_code=409, detail="User data violates database constraints")
 
     # ============================
     # USER DELETED
@@ -91,6 +134,10 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
         if user:
             user.status = UserStatus.inactive
-            await db.commit()
+            try:
+                await db.commit()
+            except IntegrityError:
+                await db.rollback()
+                raise HTTPException(status_code=409, detail="User data violates database constraints")
 
     return {"status": "success"}
