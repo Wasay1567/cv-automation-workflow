@@ -142,7 +142,7 @@ def serialize_cv(cv: CVSubmission) -> dict[str, Any]:
 def _build_summary(cv: CVSubmission) -> dict[str, Any]:
     bachelors_cgpa = None
     for academic in cv.academics:
-        if academic.degree and "bachelor" in academic.degree.lower():
+        if academic.degree and any(deg in academic.degree.lower() for deg in ["bachelor", "bs", "be"]):
             bachelors_cgpa = academic.gpa
             break
 
