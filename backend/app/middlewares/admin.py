@@ -2,9 +2,9 @@ from fastapi import Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import get_db
-from models import User, UserRole, UserStatus
-from utils import authenticate_user
+from app.database import get_db
+from app.models import User, UserRole, UserStatus
+from app.utils import authenticate_user
 
 
 async def get_current_auth(request: Request) -> dict[str, str]:

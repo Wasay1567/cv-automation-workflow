@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import User, UserRole, UserStatus
+from app.models import User, UserRole, UserStatus
 
 
 async def sync_user_preferences(

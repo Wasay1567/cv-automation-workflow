@@ -2,7 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from services.email_service import EmailService
 from fastapi.concurrency import run_in_threadpool
-from models import User, UserRole, UserStatus
+from app.models import User, UserRole, UserStatus
 
 async def get_pending_advisors(db: AsyncSession):
     result = await db.execute(

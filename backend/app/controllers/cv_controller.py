@@ -1,8 +1,8 @@
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import User, UserRole, UserStatus
-from services import cv_service
+from app.models import User, UserRole, UserStatus
+from app.services import cv_service
 
 
 def _ensure_student(user: User) -> None:

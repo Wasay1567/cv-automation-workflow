@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.admin import (
+from app.services.admin import (
 	get_pending_advisors as get_pending_advisors_service,
 	approve_advisor as approve_advisor_service,
 	reject_advisor as reject_advisor_service,

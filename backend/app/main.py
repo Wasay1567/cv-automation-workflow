@@ -1,11 +1,11 @@
 from fastapi import FastAPI
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
-from routes.cv_routes import router as cv_router
-from routes.users import router as users_router
-from routes.admin import router as admin_router
-from routes.webhook import router as webhook_router
-from database import init_db
+from app.routes.cv_routes import router as cv_router
+from app.routes.users import router as users_router
+from app.routes.admin import router as admin_router
+from app.routes.webhook import router as webhook_router
+from app.database import init_db
 
 app = FastAPI(
     title="CV Automation Workflow API",

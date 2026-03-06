@@ -5,8 +5,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from svix.webhooks import Webhook, WebhookVerificationError
 
-from database import get_db
-from models import User, UserRole, UserStatus
+from app.database import get_db
+from app.models import User, UserRole, UserStatus
 
 router = APIRouter()
 
