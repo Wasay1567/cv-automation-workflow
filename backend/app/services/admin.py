@@ -1,6 +1,6 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from services.email_service import EmailService
+from app.services.email_service import EmailService
 from fastapi.concurrency import run_in_threadpool
 from app.models import User, UserRole, UserStatus
 

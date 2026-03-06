@@ -2,8 +2,8 @@ import asyncio
 import random
 from faker import Faker
 
-import database
-from models import (
+from app import database
+from app.models import (
     User, UserRole, UserStatus,
     CVSubmission, CVStatus,
     PersonalInfo, Academic, Skill,
