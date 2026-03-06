@@ -7,6 +7,10 @@ from models import User, UserRole, UserStatus
 from utils import authenticate_user
 
 
+async def get_current_auth(request: Request) -> dict[str, str]:
+    return authenticate_user(request)
+
+
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
     auth = authenticate_user(request)
     clerk_user_id = auth["user_id"]

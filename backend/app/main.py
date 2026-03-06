@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
-# from app.routes.cv_routes import router as cv_router
+from routes.cv_routes import router as cv_router
 from routes.users import router as users_router
 from routes.admin import router as admin_router
 from routes.webhook import router as webhook_router
@@ -30,7 +30,7 @@ async def startup_event():
 async def health_check():
     return {"status": "healthy"}
 
-# app.include_router(cv_router, prefix="/api")
+app.include_router(cv_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(webhook_router)

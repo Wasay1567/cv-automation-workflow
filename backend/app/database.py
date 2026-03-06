@@ -3,6 +3,7 @@ from sqlalchemy.orm import declarative_base
 import os
 
 DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/cv_db"
+SQL_ECHO = os.getenv("SQL_ECHO", "false").lower() == "true"
 
 Base = declarative_base()
 
@@ -14,7 +15,7 @@ def init_db():
     global engine
     global AsyncSessionLocal
 
-    engine = create_async_engine(DATABASE_URL, echo=True)
+    engine = create_async_engine(DATABASE_URL, echo=SQL_ECHO)
 
     AsyncSessionLocal = async_sessionmaker(
         engine,
