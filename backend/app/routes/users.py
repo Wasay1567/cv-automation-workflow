@@ -4,9 +4,10 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from controllers.users import sync_user_preferences as sync_user_preferences_controller
-from middlewares.admin import get_current_auth
-from database import get_db
+from app.controllers.users import sync_user_preferences as sync_user_preferences_controller
+from app.middlewares.admin import get_current_user
+from app.database import get_db
+from app.models import User
 
 
 class SyncUserRequest(BaseModel):
@@ -16,6 +17,7 @@ class SyncUserRequest(BaseModel):
 router = APIRouter(
     prefix="",
     tags=["User"],
+    dependencies=[Depends(get_current_user)],  # applies to all routes in this router
 )
 
 
@@ -23,11 +25,11 @@ router = APIRouter(
 async def sync_user_data(
     req: SyncUserRequest,
     db: AsyncSession = Depends(get_db),
-    auth: dict[str, str] = Depends(get_current_auth),
+    user: User = Depends(get_current_user),
 ):
     return await sync_user_preferences_controller(
         db=db,
-        clerk_user_id=auth["user_id"],
+        clerk_user_id=user.clerk_user_id,
         department=req.department,
         role=req.role,
     )

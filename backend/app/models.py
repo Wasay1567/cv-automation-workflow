@@ -17,7 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from database import Base
+from app.database import Base
 
 
 # ============================
@@ -51,7 +51,7 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = (
         CheckConstraint(
-            "email ILIKE '%@cloud.neduet.edu.pk'",
+            "email ILIKE '%.cloud.neduet.edu.pk'",
             name="ck_users_email_university_domain"
         ),
     )
@@ -81,6 +81,14 @@ class CVSubmission(Base):
 
     cv_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
+    # ADD THIS:
+    fyp = relationship(
+        "FYP",
+        uselist=False,
+        back_populates="cv",
+        cascade="all, delete"
+    )
+
     student_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -94,8 +102,6 @@ class CVSubmission(Base):
         nullable=False,
         index=True
     )
-
-    rejection_comment = Column(Text, nullable=True)
 
     career_counseling = Column(Boolean, default=False)
 
@@ -131,11 +137,11 @@ class PersonalInfo(Base):
 
     name = Column(String(150))
     father_name = Column(String(150))
-    department = Column(String(250))
+    department = Column(String(150))
     batch = Column(String(4), index=True)
     cell = Column(String(11))
     roll_no = Column(String(8))
-    cnic = Column(String(15))
+    cnic = Column(String(11))
     email = Column(String(150))
     gender = Column(String(20))
     dob = Column(Date)
@@ -154,7 +160,7 @@ class Academic(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cv_id = Column(UUID(as_uuid=True), ForeignKey("cv_submissions.cv_id", ondelete="CASCADE"))
 
-    degree = Column(String)
+    degree = Column(String(100))
     university = Column(String(150))
     year = Column(String(10))
     gpa = Column(String(20), index=True)
@@ -190,9 +196,9 @@ class Internship(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cv_id = Column(UUID(as_uuid=True), ForeignKey("cv_submissions.cv_id", ondelete="CASCADE"))
 
-    organization = Column(Text)
-    position = Column(Text)
-    field = Column(Text)
+    organization = Column(String(150), index=True)
+    position = Column(String(150))
+    field = Column(String(150))
     from_date = Column(Date)
     to_date = Column(Date)
 
@@ -209,9 +215,9 @@ class IndustrialVisit(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cv_id = Column(UUID(as_uuid=True), ForeignKey("cv_submissions.cv_id", ondelete="CASCADE"))
 
-    organization = Column(Text)
+    organization = Column(String(150))
     purpose = Column(Text)
-    visit_date = Column(Date)
+    visit_date = Column(String(50))
 
     cv = relationship("CVSubmission", back_populates="industrial_visits")
 
@@ -226,7 +232,7 @@ class Certificate(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cv_id = Column(UUID(as_uuid=True), ForeignKey("cv_submissions.cv_id", ondelete="CASCADE"))
 
-    name = Column(Text)
+    name = Column(String(200))
 
     cv = relationship("CVSubmission", back_populates="certificates")
 
@@ -241,7 +247,7 @@ class Achievement(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cv_id = Column(UUID(as_uuid=True), ForeignKey("cv_submissions.cv_id", ondelete="CASCADE"))
 
-    description = Column(Text)
+    description = Column(String(300))
 
     cv = relationship("CVSubmission", back_populates="achievements")
 
@@ -256,7 +262,7 @@ class Skill(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cv_id = Column(UUID(as_uuid=True), ForeignKey("cv_submissions.cv_id", ondelete="CASCADE"))
 
-    name = Column(Text, index=True)
+    name = Column(String(100), index=True)
 
     cv = relationship("CVSubmission", back_populates="skills")
 
@@ -271,7 +277,7 @@ class ExtraCurricular(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cv_id = Column(UUID(as_uuid=True), ForeignKey("cv_submissions.cv_id", ondelete="CASCADE"))
 
-    activity = Column(Text)
+    activity = Column(String(200))
 
     cv = relationship("CVSubmission", back_populates="extra_curricular")
 
@@ -286,9 +292,9 @@ class Reference(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cv_id = Column(UUID(as_uuid=True), ForeignKey("cv_submissions.cv_id", ondelete="CASCADE"))
 
-    name = Column(Text)
-    contact = Column(Text)
-    occupation = Column(Text)
-    relation = Column(Text)
+    name = Column(String(150))
+    contact = Column(String(100))
+    occupation = Column(String(150))
+    relation = Column(String(100))
 
     cv = relationship("CVSubmission", back_populates="references")

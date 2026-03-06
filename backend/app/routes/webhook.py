@@ -5,13 +5,13 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from svix.webhooks import Webhook, WebhookVerificationError
 
-from database import get_db
-from models import User, UserRole, UserStatus
+from app.database import get_db
+from app.models import User, UserRole, UserStatus
 
 router = APIRouter()
 
 CLERK_WEBHOOK_SECRET = os.getenv("CLERK_WEBHOOK_SECRET")
-UNIVERSITY_EMAIL_DOMAIN = "@cloud.neduet.edu.pk"
+UNIVERSITY_EMAIL_DOMAIN = ".cloud.neduet.edu.pk"
 
 
 def is_university_email(email: str) -> bool:
@@ -20,9 +20,6 @@ def is_university_email(email: str) -> bool:
 
 @router.post("/webhooks/clerk")
 async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
-
-    if not CLERK_WEBHOOK_SECRET:
-        raise HTTPException(status_code=500, detail="CLERK_WEBHOOK_SECRET is not configured")
 
     payload = await request.body()
     headers = request.headers
@@ -35,26 +32,16 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
     event_type = event["type"]
-    data = event.get("data", {})
+    data = event["data"]
 
-    clerk_user_id = data.get("id")
-    if not clerk_user_id:
-        raise HTTPException(status_code=400, detail="Missing Clerk user id in webhook payload")
+    clerk_user_id = data["id"]
+    email = data["email_addresses"][0]["email_address"]
 
     # ============================
     # USER CREATED
     # ============================
 
     if event_type == "user.created":
-
-        email_addresses = data.get("email_addresses", [])
-        email = (
-            email_addresses[0].get("email_address")
-            if email_addresses and isinstance(email_addresses[0], dict)
-            else None
-        )
-        if not email:
-            raise HTTPException(status_code=400, detail="Missing user email in user.created payload")
 
         # Get role from metadata (set during signup)
         public_metadata = data.get("public_metadata", {})
@@ -82,7 +69,6 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             select(User).where(User.clerk_user_id == clerk_user_id)
         )
         existing_user = existing_result.scalar_one_or_none()
-        print(existing_user)
 
         if existing_user:
             existing_user.email = email
@@ -115,15 +101,6 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     # ============================
 
     elif event_type == "user.updated":
-
-        email_addresses = data.get("email_addresses", [])
-        email = (
-            email_addresses[0].get("email_address")
-            if email_addresses and isinstance(email_addresses[0], dict)
-            else None
-        )
-        if not email:
-            raise HTTPException(status_code=400, detail="Missing user email in user.updated payload")
 
         result = await db.execute(
             select(User).where(User.clerk_user_id == clerk_user_id)
@@ -162,12 +139,5 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             except IntegrityError:
                 await db.rollback()
                 raise HTTPException(status_code=409, detail="User data violates database constraints")
-
-    else:
-        return {
-            "status": "ignored",
-            "reason": "unsupported_event_type",
-            "event_type": event_type,
-        }
 
     return {"status": "success"}

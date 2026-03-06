@@ -1,21 +1,21 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
-import os
 
 DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/cv_db"
-SQL_ECHO = os.getenv("SQL_ECHO", "false").lower() == "true"
 
 Base = declarative_base()
 
-engine = None
-AsyncSessionLocal = None
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=True
+)
 
 
 def init_db():
     global engine
     global AsyncSessionLocal
 
-    engine = create_async_engine(DATABASE_URL, echo=SQL_ECHO)
+    engine = create_async_engine(DATABASE_URL, echo=True)
 
     AsyncSessionLocal = async_sessionmaker(
         engine,

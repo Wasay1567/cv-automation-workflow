@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import User, UserRole, UserStatus
+from app.models import User, UserRole, UserStatus
 
 
 async def sync_user_preferences(
@@ -10,7 +10,6 @@ async def sync_user_preferences(
     department: str,
     role: str,
 ):
-    print(clerk_user_id, department, role)
     result = await db.execute(
         select(User).where(User.clerk_user_id == clerk_user_id)
     )

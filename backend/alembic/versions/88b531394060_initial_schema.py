@@ -1,8 +1,8 @@
-"""initial_schema
+"""initial schema
 
-Revision ID: b5c7f68c8eb6
+Revision ID: 88b531394060
 Revises: 
-Create Date: 2026-03-06 01:29:32.734720
+Create Date: 2026-03-03 16:25:27.265322
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'b5c7f68c8eb6'
+revision: str = '88b531394060'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -24,23 +24,19 @@ def upgrade() -> None:
     op.create_table('users',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('email', sa.String(length=255), nullable=False),
-    sa.Column('clerk_user_id', sa.String(length=255), nullable=False),
+    sa.Column('password_hash', sa.String(length=255), nullable=False),
     sa.Column('role', sa.Enum('student', 'advisor', 'admin', name='user_role'), nullable=False),
-    sa.Column('status', sa.Enum('active', 'inactive', 'rejected', name='user_status'), nullable=False),
     sa.Column('department', sa.String(length=150), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
-    sa.CheckConstraint("email ILIKE '%%@cloud.neduet.edu.pk'", name='ck_users_email_university_domain'),
+    sa.CheckConstraint("email ILIKE '%%.cloud.neduet.edu.pk'", name='ck_users_email_university_domain'),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_users_clerk_user_id'), 'users', ['clerk_user_id'], unique=True)
     op.create_index(op.f('ix_users_department'), 'users', ['department'], unique=False)
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
-    op.create_index(op.f('ix_users_status'), 'users', ['status'], unique=False)
     op.create_table('cv_submissions',
     sa.Column('cv_id', sa.UUID(), nullable=False),
     sa.Column('student_id', sa.UUID(), nullable=False),
     sa.Column('status', sa.Enum('draft', 'submitted', 'pending_advisor', 'approved', 'rejected', name='cv_status'), nullable=False),
-    sa.Column('rejection_comment', sa.Text(), nullable=True),
     sa.Column('career_counseling', sa.Boolean(), nullable=True),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
@@ -53,7 +49,7 @@ def upgrade() -> None:
     op.create_table('academics',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('cv_id', sa.UUID(), nullable=True),
-    sa.Column('degree', sa.String(), nullable=True),
+    sa.Column('degree', sa.String(length=100), nullable=True),
     sa.Column('university', sa.String(length=150), nullable=True),
     sa.Column('year', sa.String(length=10), nullable=True),
     sa.Column('gpa', sa.String(length=20), nullable=True),
@@ -65,21 +61,21 @@ def upgrade() -> None:
     op.create_table('achievements',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('cv_id', sa.UUID(), nullable=True),
-    sa.Column('description', sa.Text(), nullable=True),
+    sa.Column('description', sa.String(length=300), nullable=True),
     sa.ForeignKeyConstraint(['cv_id'], ['cv_submissions.cv_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('certificates',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('cv_id', sa.UUID(), nullable=True),
-    sa.Column('name', sa.Text(), nullable=True),
+    sa.Column('name', sa.String(length=200), nullable=True),
     sa.ForeignKeyConstraint(['cv_id'], ['cv_submissions.cv_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('extra_curricular',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('cv_id', sa.UUID(), nullable=True),
-    sa.Column('activity', sa.Text(), nullable=True),
+    sa.Column('activity', sa.String(length=200), nullable=True),
     sa.ForeignKeyConstraint(['cv_id'], ['cv_submissions.cv_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -96,33 +92,34 @@ def upgrade() -> None:
     op.create_table('industrial_visits',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('cv_id', sa.UUID(), nullable=True),
-    sa.Column('organization', sa.Text(), nullable=True),
+    sa.Column('organization', sa.String(length=150), nullable=True),
     sa.Column('purpose', sa.Text(), nullable=True),
-    sa.Column('visit_date', sa.Date(), nullable=True),
+    sa.Column('visit_date', sa.String(length=50), nullable=True),
     sa.ForeignKeyConstraint(['cv_id'], ['cv_submissions.cv_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('internships',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('cv_id', sa.UUID(), nullable=True),
-    sa.Column('organization', sa.Text(), nullable=True),
-    sa.Column('position', sa.Text(), nullable=True),
-    sa.Column('field', sa.Text(), nullable=True),
+    sa.Column('organization', sa.String(length=150), nullable=True),
+    sa.Column('position', sa.String(length=150), nullable=True),
+    sa.Column('field', sa.String(length=150), nullable=True),
     sa.Column('from_date', sa.Date(), nullable=True),
     sa.Column('to_date', sa.Date(), nullable=True),
     sa.ForeignKeyConstraint(['cv_id'], ['cv_submissions.cv_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
+    op.create_index(op.f('ix_internships_organization'), 'internships', ['organization'], unique=False)
     op.create_table('personal_info',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('cv_id', sa.UUID(), nullable=True),
     sa.Column('name', sa.String(length=150), nullable=True),
     sa.Column('father_name', sa.String(length=150), nullable=True),
-    sa.Column('department', sa.String(length=250), nullable=True),
+    sa.Column('department', sa.String(length=150), nullable=True),
     sa.Column('batch', sa.String(length=4), nullable=True),
     sa.Column('cell', sa.String(length=11), nullable=True),
     sa.Column('roll_no', sa.String(length=8), nullable=True),
-    sa.Column('cnic', sa.String(length=15), nullable=True),
+    sa.Column('cnic', sa.String(length=11), nullable=True),
     sa.Column('email', sa.String(length=150), nullable=True),
     sa.Column('gender', sa.String(length=20), nullable=True),
     sa.Column('dob', sa.Date(), nullable=True),
@@ -134,17 +131,17 @@ def upgrade() -> None:
     op.create_table('references',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('cv_id', sa.UUID(), nullable=True),
-    sa.Column('name', sa.Text(), nullable=True),
-    sa.Column('contact', sa.Text(), nullable=True),
-    sa.Column('occupation', sa.Text(), nullable=True),
-    sa.Column('relation', sa.Text(), nullable=True),
+    sa.Column('name', sa.String(length=150), nullable=True),
+    sa.Column('contact', sa.String(length=100), nullable=True),
+    sa.Column('occupation', sa.String(length=150), nullable=True),
+    sa.Column('relation', sa.String(length=100), nullable=True),
     sa.ForeignKeyConstraint(['cv_id'], ['cv_submissions.cv_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('skills',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('cv_id', sa.UUID(), nullable=True),
-    sa.Column('name', sa.Text(), nullable=True),
+    sa.Column('name', sa.String(length=100), nullable=True),
     sa.ForeignKeyConstraint(['cv_id'], ['cv_submissions.cv_id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
@@ -160,6 +157,7 @@ def downgrade() -> None:
     op.drop_table('references')
     op.drop_index(op.f('ix_personal_info_batch'), table_name='personal_info')
     op.drop_table('personal_info')
+    op.drop_index(op.f('ix_internships_organization'), table_name='internships')
     op.drop_table('internships')
     op.drop_table('industrial_visits')
     op.drop_index(op.f('ix_fyp_company'), table_name='fyp')
@@ -173,9 +171,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_cv_submissions_status'), table_name='cv_submissions')
     op.drop_index('idx_student_status', table_name='cv_submissions')
     op.drop_table('cv_submissions')
-    op.drop_index(op.f('ix_users_status'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')
     op.drop_index(op.f('ix_users_department'), table_name='users')
-    op.drop_index(op.f('ix_users_clerk_user_id'), table_name='users')
     op.drop_table('users')
     # ### end Alembic commands ###

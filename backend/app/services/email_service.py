@@ -10,7 +10,7 @@ class EmailService:
     @staticmethod
     async def send_advisor_approval_email(to_email: str, advisor_name: str):
         return resend.Emails.send({
-            "from": "Acme <onboarding@resend.dev>",
+            "from": "CV Portal <no-reply@yourdomain.com>",
             "to": [to_email],
             "subject": "🎉 Advisor Approval Notification",
             "html": f"""
@@ -25,7 +25,7 @@ class EmailService:
     @staticmethod
     async def send_bulk_email(to_emails: List[str], subject: str, html: str):
         return resend.Emails.send({
-            "from": "Acme <onboarding@resend.dev>",
+            "from": "CV Portal <no-reply@yourdomain.com>",
             "to": to_emails,
             "subject": subject,
             "html": html

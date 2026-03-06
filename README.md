@@ -1,9 +1,5 @@
 # cv-automation-workflow
 
-## API Documentation (Frontend)
-
-- `backend/API_FRONTEND.md`
-
 ## Installation
 
 1. Start Docker containers:
