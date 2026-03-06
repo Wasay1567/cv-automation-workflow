@@ -12,6 +12,7 @@ async def get_current_auth(request: Request) -> dict[str, str]:
 
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
+    print(request.headers)
     auth = authenticate_user(request)
     clerk_user_id = auth["user_id"]
 
@@ -21,7 +22,10 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
     user = result.scalar_one_or_none()
 
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
+        raise HTTPException(
+            status_code=401,
+            detail="Authenticated Clerk user not found in database. Ensure user.created webhook has created this user.",
+        )
 
     return user
 

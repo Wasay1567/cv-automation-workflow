@@ -5,8 +5,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from controllers.users import sync_user_preferences as sync_user_preferences_controller
-from middlewares.admin import get_current_auth
+from middlewares.admin import get_current_auth, get_current_user
 from database import get_db
+from models import User
 
 
 class SyncUserRequest(BaseModel):
@@ -17,6 +18,19 @@ router = APIRouter(
     prefix="",
     tags=["User"],
 )
+
+
+@router.get("/profiles")
+async def get_profile(user: User = Depends(get_current_user)):
+    return {
+        "id": str(user.id),
+        "email": user.email,
+        "clerk_user_id": user.clerk_user_id,
+        "department": user.department,
+        "role": user.role.value,
+        "status": user.status.value,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+    }
 
 
 @router.post("/user/sync")

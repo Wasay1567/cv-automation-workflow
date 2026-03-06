@@ -10,7 +10,7 @@ from database import get_db
 from middlewares.admin import get_current_user
 from models import User
 
-router = APIRouter(prefix="/cv-submissions", tags=["CV"], dependencies=[Depends(get_current_user)])
+router = APIRouter(prefix="/cv-submissions", tags=["CV"])
 
 
 class CVCreateRequest(BaseModel):

@@ -10,18 +10,28 @@ clerk_sdk = Clerk(bearer_auth=os.getenv("CLERK_SECRET_KEY"))
 
 def _get_authorized_parties() -> list[str]:
     configured = os.getenv("CLERK_AUTHORIZED_PARTIES", "")
-    parties = [party.strip() for party in configured.split(",") if party.strip()]
-    return parties or ["http://localhost:8080", "http://127.0.0.1:8080"]
+    return [party.strip() for party in configured.split(",") if party.strip()]
+
+
+def _build_auth_options() -> AuthenticateRequestOptions:
+    options: dict = {}
+
+    jwt_key = os.getenv("JWT_KEY")
+    if jwt_key:
+        options["jwt_key"] = jwt_key
+
+    authorized_parties = _get_authorized_parties()
+    if authorized_parties:
+        options["authorized_parties"] = authorized_parties
+
+    return AuthenticateRequestOptions(**options)
 
 
 def authenticate_user(request):
     try:
         request_state = clerk_sdk.authenticate_request(
             request,
-            AuthenticateRequestOptions(
-                authorized_parties=_get_authorized_parties(),
-                jwt_key=os.getenv("JWT_KEY"),
-            ),
+            _build_auth_options(),
         )
         if not request_state.is_signed_in:
             raise HTTPException(status_code=401, detail="Invalid token")
