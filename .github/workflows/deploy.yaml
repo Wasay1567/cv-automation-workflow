@@ -27,6 +27,8 @@ jobs:
 
           git pull origin deploy
 
-          docker-compose build backend
+          docker-compose down
 
-          docker-compose up -d backend
+          docker rmi cv-automation-workflow_backend
+
+          docker-compose up -d
