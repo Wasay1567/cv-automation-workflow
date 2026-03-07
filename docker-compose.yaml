@@ -1,10 +1,11 @@
 version: "3.9"
 
 services:
+
   db:
     image: postgres:16
     container_name: cv_postgres
-    restart: always
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -13,13 +14,45 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - cv_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      retries: 5
+      timeout: 5s
+
+  backend:
+    build:
+      context: ./backend
+    container_name: cv_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - ./backend/app/.env
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+    networks:
+      - cv_network
 
   cloudbeaver:
     image: dbeaver/cloudbeaver:latest
-    container_name: cloudbeaver
-    restart: always
+    container_name: cv_cloudbeaver
+    restart: unless-stopped
     ports:
       - "8978:8978"
+    networks:
+      - cv_network
 
 volumes:
   postgres_data:
+
+networks:
+  cv_network:

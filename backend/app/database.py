@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base
 import os
 
-DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/cv_db"
+DATABASE_URL = "postgresql+asyncpg://postgres:postgres@db:5432/cv_db"
 SQL_ECHO = os.getenv("SQL_ECHO", "false").lower() == "true"
 
 Base = declarative_base()
