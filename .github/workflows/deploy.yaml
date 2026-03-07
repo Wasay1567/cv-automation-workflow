@@ -27,6 +27,6 @@ jobs:
 
           git pull origin deploy
 
-          docker compose build backend
+          docker-compose build backend
 
-          docker compose up -d backend
+          docker-compose up -d backend
