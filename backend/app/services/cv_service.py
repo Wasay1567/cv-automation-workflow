@@ -1,10 +1,13 @@
 from datetime import date, datetime
+import asyncio
 from typing import Any
 
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from services.email_service import EmailService
 from models import (
     Academic,
     Achievement,
@@ -23,6 +26,21 @@ from models import (
 )
 
 
+def _schedule_rejection_email(to_email: str, rejection_comment: str | None) -> None:
+    student_name = to_email.split("@")[0] if to_email else "Student"
+    task = asyncio.create_task(
+        run_in_threadpool(
+            EmailService.send_cv_rejection_email,
+            to_email,
+            student_name,
+            rejection_comment,
+        )
+    )
+
+    # Prevent unhandled task exceptions from being silently ignored.
+    task.add_done_callback(lambda t: t.exception())
+
+
 def _to_iso(value: date | datetime | None) -> str | None:
     return value.isoformat() if value else None
 
@@ -33,6 +51,7 @@ def _serialize_cv(cv: CVSubmission) -> dict[str, Any]:
         "student_id": str(cv.student_id),
         "student_email": cv.student.email if cv.student else None,
         "status": cv.status.value,
+        "student_image_url": cv.student_image_url,
         "rejection_comment": cv.rejection_comment,
         "career_counseling": cv.career_counseling,
         "created_at": _to_iso(cv.created_at),
@@ -194,6 +213,7 @@ async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) 
     cv = CVSubmission(
         student_id=current_user.id,
         status=CVStatus.pending_advisor,
+        student_image_url=data.get("student_image_url"),
         career_counseling=data.get("career_counseling", False),
     )
     _attach_cv_sections(cv, data)
@@ -214,6 +234,9 @@ async def list_cvs(current_user: User, db: AsyncSession) -> list[dict[str, Any]]
 
     if current_user.role == UserRole.advisor:
         query = query.join(CVSubmission.student).where(User.department == current_user.department)
+    
+    elif current_user.role == UserRole.admin:
+        query = query.join(CVSubmission.student).where(CVSubmission.status == CVStatus.approved)
 
     result = await db.execute(query)
     cvs = result.scalars().all()
@@ -260,6 +283,7 @@ async def update_cv(cv_id: str, data: dict[str, Any], current_user: User, db: As
         return None
 
     cv.career_counseling = data.get("career_counseling", cv.career_counseling)
+    cv.student_image_url = data.get("student_image_url", cv.student_image_url)
     cv.status = CVStatus.pending_advisor
     cv.rejection_comment = None
     _attach_cv_sections(cv, data)
@@ -308,6 +332,14 @@ async def reject_cv(cv_id: str, comment: str | None, current_user: User, db: Asy
     cv.status = CVStatus.rejected
     cv.rejection_comment = comment
     await db.commit()
+
+    student_email_result = await db.execute(
+        select(User.email).where(User.id == cv.student_id)
+    )
+    student_email = student_email_result.scalar_one_or_none()
+
+    if student_email:
+        _schedule_rejection_email(student_email, comment)
 
     return {
         "cv_id": str(cv.cv_id),

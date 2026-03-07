@@ -17,7 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
-from database import Base
+from app.database import Base
 
 
 # ============================
@@ -94,6 +94,10 @@ class CVSubmission(Base):
         nullable=False,
         index=True
     )
+
+    student_image_url = Column(String(500), nullable=True)
+
+    cv_drive_url = Column(String(500), nullable=True)
 
     rejection_comment = Column(Text, nullable=True)
 
