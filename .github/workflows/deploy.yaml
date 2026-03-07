@@ -1,15 +1,17 @@
 name: Deploy Backend
 
 on:
+  push:
+    branches:
+      - deploy
+      
   pull_request:
     branches:
       - deploy
     types:
       - closed
   
-  push:
-    branches:
-      - deploy
+  
 
 jobs:
 
@@ -36,13 +38,13 @@ jobs:
             git pull origin deploy
 
             echo "Stopping containers"
-            docker compose down
+            docker-compose down
 
             echo "Removing backend image"
             docker rmi cv-automation-workflow_backend || true
 
             echo "Starting containers"
-            docker compose up -d
+            docker-compose up -d
 
             echo "Waiting for backend to become healthy..."
 
