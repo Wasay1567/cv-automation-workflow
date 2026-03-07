@@ -4,10 +4,10 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from controllers.users import sync_user_preferences as sync_user_preferences_controller
-from middlewares.admin import get_current_auth, get_current_user
-from database import get_db
-from models import User
+from app.controllers.users import sync_user_preferences as sync_user_preferences_controller
+from app.middlewares.admin import get_current_auth, get_current_user
+from app.database import get_db
+from app.models import User
 
 
 class SyncUserRequest(BaseModel):

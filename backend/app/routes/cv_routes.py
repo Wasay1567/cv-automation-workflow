@@ -5,10 +5,10 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from controllers import cv_controller
-from database import get_db
-from middlewares.admin import get_current_user
-from models import User
+from app.controllers import cv_controller
+from app.database import get_db
+from app.middlewares.admin import get_current_user
+from app.models import User
 
 router = APIRouter(prefix="/cv-submissions", tags=["CV"])
 

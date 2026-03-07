@@ -1,7 +1,7 @@
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from services.users import sync_user_preferences as sync_user_preferences_service
+from app.services.users import sync_user_preferences as sync_user_preferences_service
 
 
 async def sync_user_preferences(

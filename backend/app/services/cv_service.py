@@ -7,8 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from services.email_service import EmailService
-from models import (
+from app.services.email_service import EmailService
+from app.models import (
     Academic,
     Achievement,
     CVStatus,

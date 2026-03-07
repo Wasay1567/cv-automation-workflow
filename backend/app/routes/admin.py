@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from controllers.admin import (
+from app.controllers.admin import (
     get_pending_advisors as get_pending_advisors_controller,
     approve_advisor as approve_advisor_controller,
     reject_advisor as reject_advisor_controller,
 )
-from middlewares.admin import require_active_admin
-from database import get_db
+from app.middlewares.admin import require_active_admin
+from app.database import get_db
 
 router = APIRouter(
     prefix="/admin",
