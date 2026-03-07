@@ -6,6 +6,10 @@ on:
       - deploy
     types:
       - closed
+  
+  push:
+    branches:
+      - deploy
 
 jobs:
 
