@@ -39,7 +39,6 @@ services:
       interval: 10s
       retries: 5
       timeout: 5s
-    command: alembic upgrade head
     networks:
       - cv_network
 
