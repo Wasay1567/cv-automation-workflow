@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: a4;
+            margin: 0;
+        }
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            color: #333333;
+            line-height: 1.4;
+            margin: 0;
+            padding: 0;
+        }
+        /* Layout Table */
+        .main-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        /* Sidebar Styling */
+        .sidebar {
+            background-color: #003851;
+            color: #ffffff;
+            width: 35%;
+            vertical-align: top;
+            padding: 40px 20px;
+        }
+        /* Main Content Styling */
+        .content {
+            background-color: #ffffff;
+            width: 65%;
+            vertical-align: top;
+            padding: 40px 30px;
+        }
+        /* Typography */
+        h1 { font-size: 22pt; margin-bottom: 5px; color: #ffffff; text-transform: uppercase; }
+        .profession { font-size: 13pt; margin-bottom: 30px; color: #00A3E0; font-weight: bold; }
+        
+        h2 { 
+            font-size: 14pt; 
+            color: #00A3E0; 
+            border-bottom: 1px solid #00A3E0; 
+            padding-bottom: 5px; 
+            margin-top: 20px;
+            margin-bottom: 12px;
+        }
+        
+        .section-title-white { color: #ffffff; border-bottom: 1px solid #ffffff; margin-top: 25px; }
+
+        /* Skill Stars */
+        .stars-white { color: #ffffff; font-size: 12pt; }
+        
+        /* List Styling */
+        .contact-item { margin-bottom: 12px; font-size: 10pt; color: #ffffff; }
+        .history-item { margin-bottom: 18px; }
+        .company-name { font-weight: bold; font-size: 11pt; color: #333333; }
+        .date-range { color: #777777; font-size: 9pt; text-align: right; }
+        .job-title { color: #00A3E0; font-style: italic; font-size: 10pt; margin: 2px 0; }
+        .desc { font-size: 10pt; text-align: justify; color: #444444; }
+
+        .lang-text { font-size: 9pt; color: #ffffff; }
+        .lang-per { font-size: 10pt; font-weight: bold; color: #00A3E0; }
+    </style>
+</head>
+<body>
+
+<table class="main-table">
+    <tr>
+        <td class="sidebar">
+            <h1>{{ name|default('Azen Sajid') }}</h1>
+            <div class="profession">{{ profession|default('Software Engineer') }}</div>
+
+            <h2 class="section-title-white">CONTACT</h2>
+            <div class="contact-item"><strong>Phone:</strong><br>{{ phone }}</div>
+            <div class="contact-item"><strong>Email:</strong><br>{{ email }}</div>
+            <div class="contact-item"><strong>Address:</strong><br>{{ address }}</div>
+
+            <h2 class="section-title-white">SKILLS</h2>
+            {% if skills and skills|length > 0 %}
+                {% for skill in skills %}
+                <table width="100%" style="margin-bottom: 6px;">
+                    <tr>
+                        <td style="font-size: 9pt; color: #ffffff; width: 60%;">{{ skill.name }}</td>
+                        <td align="right" class="stars-white" style="width: 40%;">
+                            {% for i in range(skill.level|int) %}★{% endfor %}{% for i in range(5 - skill.level|int) %}☆{% endfor %}
+                        </td>
+                    </tr>
+                </table>
+                {% endfor %}
+            {% else %}
+                <p style="font-size: 9pt; color: #ffffff;">Skills not provided</p>
+            {% endif %}
+
+            <h2 class="section-title-white">LANGUAGES</h2>
+            {% if languages %}
+            <table width="100%">
+                <tr>
+                    {% for lang in languages %}
+                    <td align="center">
+                        <div class="lang-per">{{ lang.percent }}%</div>
+                        <div class="lang-text">{{ lang.name }}</div>
+                    </td>
+                    {% endfor %}
+                </tr>
+            </table>
+            {% endif %}
+        </td>
+
+        <td class="content">
+            <div style="background-color: #00A3E0; height: 8px; width: 100%; margin-bottom: 15px;"></div>
+
+            <h2>ABOUT ME</h2>
+            <p class="desc">{{ about_me }}</p>
+
+            <h2>EXPERIENCE</h2>
+            {% if experience %}
+                {% for job in experience %}
+                <div class="history-item">
+                    <table width="100%">
+                        <tr>
+                            <td class="company-name">{{ job.company }}</td>
+                            <td class="date-range">{{ job.date }}</td>
+                        </tr>
+                    </table>
+                    <div class="job-title">{{ job.title }}</div>
+                    <p class="desc">{{ job.description }}</p>
+                </div>
+                {% endfor %}
+            {% endif %}
+
+            <h2>EDUCATION</h2>
+            {% if education %}
+                {% for edu in education %}
+                <div class="history-item">
+                    <table width="100%">
+                        <tr>
+                            <td class="company-name">{{ edu.institution }}</td>
+                            <td class="date-range">{{ edu.date }}</td>
+                        </tr>
+                    </table>
+                    <div class="job-title">{{ edu.degree }}</div>
+                    <p class="desc">{{ edu.description }}</p>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>
