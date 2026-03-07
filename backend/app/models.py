@@ -95,6 +95,10 @@ class CVSubmission(Base):
         index=True
     )
 
+    student_image_url = Column(String(500), nullable=True)
+
+    cv_drive_url = Column(String(500), nullable=True)
+
     rejection_comment = Column(Text, nullable=True)
 
     career_counseling = Column(Boolean, default=False)

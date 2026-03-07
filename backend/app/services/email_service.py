@@ -30,3 +30,25 @@ class EmailService:
             "subject": subject,
             "html": html
         })
+
+    @staticmethod
+    def send_cv_rejection_email(to_email: str, student_name: str, rejection_comment: str | None = None):
+        comment_html = (
+            f"<p><strong>Reviewer comments:</strong> {rejection_comment}</p>"
+            if rejection_comment
+            else ""
+        )
+
+        return resend.Emails.send({
+            "from": "Acme <onboarding@resend.dev>",
+            "to": [to_email],
+            "subject": "CV Submission Rejected",
+            "html": f"""
+                <h2>Hello {student_name},</h2>
+                <p>Your CV submission has been reviewed and marked as rejected.</p>
+                {comment_html}
+                <p>Please update your submission and try again.</p>
+                <br/>
+                <p>Regards,<br/>NED University CV Portal</p>
+            """,
+        })
