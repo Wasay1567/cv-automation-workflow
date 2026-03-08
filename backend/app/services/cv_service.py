@@ -51,7 +51,7 @@ def _serialize_cv(cv: CVSubmission) -> dict[str, Any]:
         "student_id": str(cv.student_id),
         "student_email": cv.student.email if cv.student else None,
         "status": cv.status.value,
-        "student_image_url": cv.student_image_url,
+        "student_image": cv.student_image_url,
         "rejection_comment": cv.rejection_comment,
         "career_counseling": cv.career_counseling,
         "created_at": _to_iso(cv.created_at),
@@ -213,7 +213,7 @@ async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) 
     cv = CVSubmission(
         student_id=current_user.id,
         status=CVStatus.pending_advisor,
-        student_image_url=data.get("student_image_url"),
+        student_image_url=data.get("student_image"),
         career_counseling=data.get("career_counseling", False),
     )
     _attach_cv_sections(cv, data)
@@ -240,7 +240,14 @@ async def list_cvs(current_user: User, db: AsyncSession) -> list[dict[str, Any]]
 
     result = await db.execute(query)
     cvs = result.scalars().all()
-    return [_build_summary(cv) for cv in cvs]
+    return [
+        {
+            **_serialize_cv(cv),
+            "summary": 
+            _build_summary(cv),
+        }
+        for cv in cvs
+    ]
 
 
 async def get_student_cvs(current_user: User, db: AsyncSession) -> list[dict[str, Any]]:
@@ -283,7 +290,7 @@ async def update_cv(cv_id: str, data: dict[str, Any], current_user: User, db: As
         return None
 
     cv.career_counseling = data.get("career_counseling", cv.career_counseling)
-    cv.student_image_url = data.get("student_image_url", cv.student_image_url)
+    cv.student_image_url = data.get("student_image", cv.student_image_url)
     cv.status = CVStatus.pending_advisor
     cv.rejection_comment = None
     _attach_cv_sections(cv, data)
