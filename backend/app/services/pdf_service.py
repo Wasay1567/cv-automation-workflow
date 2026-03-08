@@ -6,10 +6,25 @@ from app.services.google_auth import drive_service
 from app.core.config import PARENT_FOLDER_ID
 from googleapiclient.http import MediaIoBaseUpload # Moved to top for better practice
 
+from googleapiclient.http import MediaIoBaseDownload
+
 # Setup Jinja2 environment
 # Assuming this file is in app/services/
 template_dir = os.path.join(os.path.dirname(__file__), '..', 'templates')
 env = Environment(loader=FileSystemLoader(template_dir))
+
+def download_file_from_drive(file_id: str):
+    request = drive_service.files().get_media(fileId=file_id)
+    file_stream = BytesIO()
+    downloader = MediaIoBaseDownload(file_stream, request)
+    
+    done = False
+    while done is False:
+        status, done = downloader.next_chunk()
+        
+    file_stream.seek(0)
+    return file_stream
+
 
 def generate_and_upload_cv(data: dict):
     # 1. Render HTML with Jinja2
@@ -27,7 +42,7 @@ def generate_and_upload_cv(data: dict):
     # IMPORTANT: Go back to the start of the stream before uploading
     pdf_buffer.seek(0)
 
-    file_name = f"{data.get('name', 'Generated')}_CV.pdf"
+    file_name = f"{data.get('name', 'Generated')}_2025_CV.pdf"
     
     # --- NEW: Check and Delete Existing File ---
     try:

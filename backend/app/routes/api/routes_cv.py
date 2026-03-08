@@ -1,9 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Body
 from app.schemas.cv_schema import CVRequest
 from app.services.drive_service import copy_template
 from app.services.slides_service import replace_placeholders
 from app.core.config import TEMPLATE_ID
-from app.services.pdf_service import generate_and_upload_cv
+from app.services.pdf_service import generate_and_upload_cv, download_file_from_drive
+import zipfile
+from io import BytesIO  # <--- ADD THIS IMPORT
+from fastapi.responses import StreamingResponse
+from app.core.config import PARENT_FOLDER_ID
+from app.services.google_auth import drive_service
 
 router = APIRouter()
 
@@ -40,3 +45,57 @@ async def generate_pdf_endpoint(data: CVRequest):
     file_id = generate_and_upload_cv(cv_data)
 
     return {"status": "success", "file_id": file_id}
+
+
+@router.post("/download-single")
+async def download_single_cv(payload: dict = Body(...)):
+    cv_name = payload.get("cv_name")
+    if not cv_name:
+        raise HTTPException(status_code=400, detail="CV name is required")
+
+    # Find the file ID by name
+    query = f"name = '{cv_name}' and '{PARENT_FOLDER_ID}' in parents and trashed = false"
+    results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    files = results.get('files', [])
+
+    if not files:
+        raise HTTPException(status_code=404, detail="CV not found")
+
+    file_id = files[0]['id']
+    pdf_content = download_file_from_drive(file_id)
+
+    return StreamingResponse(
+        pdf_content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={cv_name}"}
+    )
+
+@router.post("/download-bulk")
+async def download_bulk_cvs(payload: dict = Body(...)):
+    year = payload.get("year")
+    if not year:
+        raise HTTPException(status_code=400, detail="Year is required")
+
+    # Search for all CVs containing the year in their name
+    query = f"name contains '{year}' and '{PARENT_FOLDER_ID}' in parents and trashed = false"
+    results = drive_service.files().list(q=query, fields="files(id, name)").execute()
+    files = results.get('files', [])
+
+    if not files:
+        raise HTTPException(status_code=404, detail=f"No CVs found for year {year}")
+
+    # Create an in-memory ZIP file using BytesIO
+    zip_buffer = BytesIO()
+    with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED, False) as zip_file:
+        for f in files:
+            file_data = download_file_from_drive(f['id'])
+            # .getvalue() gets the raw bytes from the BytesIO stream
+            zip_file.writestr(f['name'], file_data.getvalue())
+
+    zip_buffer.seek(0)
+
+    return StreamingResponse(
+        zip_buffer,
+        media_type="application/x-zip-compressed",
+        headers={"Content-Disposition": f"attachment; filename=CVs_{year}.zip"}
+    )
