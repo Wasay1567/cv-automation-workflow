@@ -2,7 +2,7 @@ from datetime import date
 from typing import Optional
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.controllers import cv_controller
@@ -14,13 +14,23 @@ router = APIRouter(prefix="/cv-submissions", tags=["CV"])
 
 
 class CVCreateRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     class PersonalInfoPayload(BaseModel):
+        model_config = ConfigDict(populate_by_name=True)
+
         name: Optional[str] = None
-        father_name: Optional[str] = None
+        father_name: Optional[str] = Field(
+            default=None,
+            validation_alias=AliasChoices("father_name", "fatherName"),
+        )
         department: Optional[str] = None
         batch: Optional[str] = None
         cell: Optional[str] = None
-        roll_no: Optional[str] = None
+        roll_no: Optional[str] = Field(
+            default=None,
+            validation_alias=AliasChoices("roll_no", "rollNo"),
+        )
         cnic: Optional[str] = None
         email: Optional[str] = None
         gender: Optional[str] = None
@@ -69,17 +79,32 @@ class CVCreateRequest(BaseModel):
         occupation: Optional[str] = None
         relation: Optional[str] = None
 
-    career_counseling: bool = False
-    student_image: Optional[str] = None
-    personal_info: Optional[PersonalInfoPayload] = None
+    career_counseling: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("career_counseling", "careerCounseling"),
+    )
+    student_image: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("student_image", "studentImage", "student_image_url", "studentImageUrl"),
+    )
+    personal_info: Optional[PersonalInfoPayload] = Field(
+        default=None,
+        validation_alias=AliasChoices("personal_info", "personalInfo"),
+    )
     academics: list[AcademicPayload] = Field(default_factory=list)
     internships: list[InternshipPayload] = Field(default_factory=list)
-    industrial_visits: list[IndustrialVisitPayload] = Field(default_factory=list)
+    industrial_visits: list[IndustrialVisitPayload] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices("industrial_visits", "industrialVisits"),
+    )
     fyp: Optional[FYPPayload] = None
     certificates: list[CertificatePayload] = Field(default_factory=list)
     achievements: list[AchievementPayload] = Field(default_factory=list)
     skills: list[SkillPayload] = Field(default_factory=list)
-    extra_curricular: list[ExtraCurricularPayload] = Field(default_factory=list)
+    extra_curricular: list[ExtraCurricularPayload] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices("extra_curricular", "extraCurricular"),
+    )
     references: list[ReferencePayload] = Field(default_factory=list)
 
 

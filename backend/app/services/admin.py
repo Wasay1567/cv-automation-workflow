@@ -12,13 +12,12 @@ async def get_pending_advisors(db: AsyncSession):
         )
     )
     advisors = result.all()
-    print(advisors)
     return [
         {
             "id": advisor_id,
             "email": email,
             "department": department,
-            "created_at": created_at.isoformat() if created_at else None,
+            "created_at": created_at if created_at else None,
         }
         for advisor_id, email, department, created_at in advisors
     ]
