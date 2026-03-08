@@ -210,6 +210,7 @@ def _cv_load_options() -> list:
 
 
 async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) -> dict[str, Any]:
+    print(data)
     cv = CVSubmission(
         student_id=current_user.id,
         status=CVStatus.pending_advisor,
