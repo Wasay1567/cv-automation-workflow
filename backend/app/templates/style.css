@@ -1,0 +1,115 @@
+@page {
+    size: a4;
+    margin: 0;
+}
+
+body {
+    font-family: 'Helvetica', 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    color: #333;
+    line-height: 1.2;
+}
+
+/* Background Layers */
+.sidebar-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 38%;
+    height: 100%;
+    background-color: #1a1a1a;
+    z-index: -1;
+}
+
+/* Header Section */
+.header-banner {
+    background-color: #003087;
+    height: 120px;
+    margin-left: 30%;
+    margin-top: 50px;
+    padding-left: 100px;
+    color: white;
+}
+
+.name-text {
+    font-size: 32pt;
+    font-weight: bold;
+    text-transform: uppercase;
+    margin: 0;
+    padding-top: 15px;
+}
+
+.profession-text {
+    font-size: 14pt;
+    font-weight: lighter;
+    margin: 0;
+}
+
+/* Profile Image */
+.profile-container {
+    position: absolute;
+    top: 40px;
+    left: 10%;
+    z-index: 10;
+}
+
+.profile-img {
+    width: 160px;
+    height: 160px;
+    border-radius: 80px;
+    border: 5px solid #003087;
+}
+
+/* Layout Table */
+.main-layout {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.left-col {
+    width: 38%;
+    vertical-align: top;
+    padding: 220px 30px 40px 30px;
+    color: white;
+}
+
+.right-col {
+    width: 62%;
+    vertical-align: top;
+    padding: 180px 40px 40px 40px;
+}
+
+/* Section Styling */
+.section-title-left {
+    font-size: 16pt;
+    text-align: center;
+    border-bottom: 1px solid #555;
+    margin-bottom: 15px;
+    padding-bottom: 5px;
+}
+
+.blue-pill {
+    background-color: #003087;
+    color: white;
+    border-radius: 15px;
+    padding: 5px 20px;
+    display: inline-block;
+    font-size: 12pt;
+    margin-bottom: 15px;
+}
+
+/* Content Details */
+.contact-row {
+    font-size: 9pt;
+    margin-bottom: 10px;
+}
+
+.item-title { font-weight: bold; font-size: 11pt; margin-top: 10px; }
+.item-subtitle { font-size: 9pt; font-weight: bold; }
+.item-date { font-size: 9pt; color: #555; }
+.item-desc { font-size: 9pt; color: #444; margin-bottom: 15px; }
+
+/* Progress Bars */
+.progress-bg { background-color: #ddd; height: 8px; width: 100%; }
+.progress-fill { background-color: #003087; height: 8px; }

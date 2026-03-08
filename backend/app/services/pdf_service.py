@@ -27,9 +27,31 @@ def generate_and_upload_cv(data: dict):
     # IMPORTANT: Go back to the start of the stream before uploading
     pdf_buffer.seek(0)
 
-    # 3. Upload to Google Drive
+    file_name = f"{data.get('name', 'Generated')}_CV.pdf"
+    
+    # --- NEW: Check and Delete Existing File ---
+    try:
+        # Search for files with the same name in the specific parent folder
+        query = f"name = '{file_name}' and '{PARENT_FOLDER_ID}' in parents and trashed = false"
+        results = drive_service.files().list(
+            q=query, 
+            spaces='drive', 
+            fields='files(id, name)'
+        ).execute()
+        
+        items = results.get('files', [])
+        
+        for item in items:
+            print(f"Found existing CV: {item['name']} (ID: {item['id']}). Deleting...")
+            drive_service.files().delete(fileId=item['id']).execute()
+            
+    except Exception as e:
+        print(f"Warning during file cleanup: {e}")
+    # --------------------------------------------
+
+    # Proceed with Upload
     file_metadata = {
-        'name': f"{data.get('name', 'Generated').replace(' ', '_')}_CV.pdf",
+        'name': file_name,
         'mimeType': 'application/pdf',
         'parents': [PARENT_FOLDER_ID] if PARENT_FOLDER_ID else []
     }
