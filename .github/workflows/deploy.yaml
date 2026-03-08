@@ -1,0 +1,60 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - deploy
+      
+  pull_request:
+    branches:
+      - deploy
+    types:
+      - closed
+  
+  
+
+jobs:
+
+  deploy:
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+
+          script: |
+
+            cd ~/cv-automation-workflow
+
+            echo "Pull latest code"
+            git pull origin deploy
+
+            echo "Stopping containers"
+            docker-compose down
+
+            echo "Removing backend image"
+            docker rmi cv-automation-workflow_backend || true
+
+            echo "Starting containers"
+            docker-compose up -d
+
+            echo "Waiting for backend to become healthy..."
+
+            until [ "$(docker inspect -f {{.State.Health.Status}} cv_backend)" == "healthy" ]; do
+              echo "Backend not ready yet..."
+              sleep 5
+            done
+
+            echo "Backend healthy. Running migrations..."
+
+            docker exec cv_backend alembic upgrade head
+
+            echo "Deployment complete"
