@@ -179,15 +179,6 @@ def _build_summary(cv: CVSubmission) -> dict[str, Any]:
 
 
 def _attach_cv_sections(cv: CVSubmission, data: dict[str, Any]) -> None:
-    def _to_named_items(items: list[Any], key: str) -> list[dict[str, Any]]:
-        normalized: list[dict[str, Any]] = []
-        for item in items:
-            if isinstance(item, str):
-                normalized.append({key: item})
-            elif isinstance(item, dict):
-                normalized.append(item)
-        return normalized
-
     personal_info = data.get("personal_info")
     cv.personal_info = PersonalInfo(**personal_info) if personal_info else None
 
@@ -195,18 +186,10 @@ def _attach_cv_sections(cv: CVSubmission, data: dict[str, Any]) -> None:
     cv.internships = [Internship(**item) for item in data.get("internships", [])]
     cv.industrial_visits = [IndustrialVisit(**item) for item in data.get("industrial_visits", [])]
     cv.fyp = FYP(**data["fyp"]) if data.get("fyp") else None
-    cv.certificates = [
-        Certificate(**item) for item in _to_named_items(data.get("certificates", []), "name")
-    ]
-    cv.achievements = [
-        Achievement(**item) for item in _to_named_items(data.get("achievements", []), "description")
-    ]
-    cv.skills = [
-        Skill(**item) for item in _to_named_items(data.get("skills", []), "name")
-    ]
-    cv.extra_curricular = [
-        ExtraCurricular(**item) for item in _to_named_items(data.get("extra_curricular", []), "activity")
-    ]
+    cv.certificates = [Certificate(**item) for item in data.get("certificates", [])]
+    cv.achievements = [Achievement(**item) for item in data.get("achievements", [])]
+    cv.skills = [Skill(**item) for item in data.get("skills", [])]
+    cv.extra_curricular = [ExtraCurricular(**item) for item in data.get("extra_curricular", [])]
     cv.references = [Reference(**item) for item in data.get("references", [])]
 
 
