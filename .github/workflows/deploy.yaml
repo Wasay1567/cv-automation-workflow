@@ -32,7 +32,7 @@ jobs:
 
           script: |
 
-            cd ~/cv-automation-workflow/backend
+            cd ~/cv-automation-workflow
 
             echo "Pull latest code"
             git pull origin deploy
