@@ -45,16 +45,29 @@ class CVCreateRequest(BaseModel):
         majors: Optional[str] = None
 
     class InternshipPayload(BaseModel):
+        model_config = ConfigDict(populate_by_name=True)
+
         organization: Optional[str] = None
         position: Optional[str] = None
         field: Optional[str] = None
-        from_date: Optional[date] = None
-        to_date: Optional[date] = None
+        from_date: Optional[date] = Field(
+            default=None,
+            validation_alias=AliasChoices("from_date", "from"),
+        )
+        to_date: Optional[date] = Field(
+            default=None,
+            validation_alias=AliasChoices("to_date", "to"),
+        )
 
     class IndustrialVisitPayload(BaseModel):
+        model_config = ConfigDict(populate_by_name=True)
+
         organization: Optional[str] = None
         purpose: Optional[str] = None
-        visit_date: Optional[str] = None
+        visit_date: Optional[str] = Field(
+            default=None,
+            validation_alias=AliasChoices("visit_date", "date"),
+        )
 
     class FYPPayload(BaseModel):
         title: Optional[str] = None
@@ -98,10 +111,10 @@ class CVCreateRequest(BaseModel):
         validation_alias=AliasChoices("industrial_visits", "industrialVisits"),
     )
     fyp: Optional[FYPPayload] = None
-    certificates: list[CertificatePayload] = Field(default_factory=list)
-    achievements: list[AchievementPayload] = Field(default_factory=list)
-    skills: list[SkillPayload] = Field(default_factory=list)
-    extra_curricular: list[ExtraCurricularPayload] = Field(
+    certificates: list[CertificatePayload | str] = Field(default_factory=list)
+    achievements: list[AchievementPayload | str] = Field(default_factory=list)
+    skills: list[SkillPayload | str] = Field(default_factory=list)
+    extra_curricular: list[ExtraCurricularPayload | str] = Field(
         default_factory=list,
         validation_alias=AliasChoices("extra_curricular", "extraCurricular"),
     )
