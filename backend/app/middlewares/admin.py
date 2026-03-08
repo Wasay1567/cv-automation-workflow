@@ -12,7 +12,6 @@ async def get_current_auth(request: Request) -> dict[str, str]:
 
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
-    print(request.headers)
     auth = authenticate_user(request)
     clerk_user_id = auth["user_id"]
 

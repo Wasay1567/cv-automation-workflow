@@ -70,7 +70,7 @@ class CVCreateRequest(BaseModel):
         relation: Optional[str] = None
 
     career_counseling: bool = False
-    student_image_url: Optional[str] = None
+    student_image: Optional[str] = None
     personal_info: Optional[PersonalInfoPayload] = None
     academics: list[AcademicPayload] = Field(default_factory=list)
     internships: list[InternshipPayload] = Field(default_factory=list)
