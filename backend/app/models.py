@@ -15,6 +15,7 @@ from sqlalchemy import (
     Index
 )
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -160,7 +161,8 @@ class Academic(Base):
 
     degree = Column(String)
     university = Column(String(150))
-    year = Column(String(10))
+    to_date = Column(Date)
+    from_date = Column(Date)
     gpa = Column(String(20), index=True)
     majors = Column(String(150))
 
@@ -194,10 +196,11 @@ class Internship(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     cv_id = Column(UUID(as_uuid=True), ForeignKey("cv_submissions.cv_id", ondelete="CASCADE"))
 
-    organization = Column(Text)
+    organization = Column(Text, nullable=False)
     position = Column(Text)
     field = Column(Text)
-    from_date = Column(Date)
+    duties = Column(ARRAY(Text), nullable=False)
+    from_date = Column(Date, nullable=False)
     to_date = Column(Date)
 
     cv = relationship("CVSubmission", back_populates="internships")

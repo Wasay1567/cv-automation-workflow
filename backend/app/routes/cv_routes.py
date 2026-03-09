@@ -1,8 +1,8 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.controllers import cv_controller
@@ -38,40 +38,106 @@ class CVCreateRequest(BaseModel):
         address: Optional[str] = None
 
     class AcademicPayload(BaseModel):
+        model_config = ConfigDict(populate_by_name=True)
+
         degree: Optional[str] = None
         university: Optional[str] = None
-        year: Optional[str] = None
         gpa: Optional[str] = None
         majors: Optional[str] = None
+        from_date: Optional[date] = Field(
+            default=None,
+            validation_alias=AliasChoices("from_date", "from"),
+        )
+        to_date: Optional[date] = Field(
+            default=None,
+            validation_alias=AliasChoices("to_date", "to"),
+        )
+
+        @field_validator("from_date", "to_date", mode="before")
+        @classmethod
+        def _parse_optional_dates(cls, value):
+            if value in (None, ""):
+                return None
+            if isinstance(value, str):
+                raw = value.strip()
+                for fmt in ("%Y-%m-%d", "%b, %Y", "%B, %Y", "%b %Y", "%B %Y"):
+                    try:
+                        return datetime.strptime(raw, fmt).date()
+                    except ValueError:
+                        continue
+            return value
+        
 
     class InternshipPayload(BaseModel):
+        model_config = ConfigDict(populate_by_name=True)
+
         organization: Optional[str] = None
         position: Optional[str] = None
         field: Optional[str] = None
-        from_date: Optional[date] = None
-        to_date: Optional[date] = None
+        duties: list[str] = Field(default_factory=list)
+        from_date: Optional[date] = Field(
+            default=None,
+            validation_alias=AliasChoices("from_date", "from"),
+        )
+        to_date: Optional[date] = Field(
+            default=None,
+            validation_alias=AliasChoices("to_date", "to"),
+        )
+
+        @field_validator("from_date", "to_date", mode="before")
+        @classmethod
+        def _parse_optional_dates(cls, value):
+            if value in (None, ""):
+                return None
+            if isinstance(value, str):
+                raw = value.strip()
+                for fmt in ("%Y-%m-%d", "%b, %Y", "%B, %Y", "%b %Y", "%B %Y"):
+                    try:
+                        return datetime.strptime(raw, fmt).date()
+                    except ValueError:
+                        continue
+            return value
 
     class IndustrialVisitPayload(BaseModel):
+        model_config = ConfigDict(populate_by_name=True)
+
         organization: Optional[str] = None
         purpose: Optional[str] = None
-        visit_date: Optional[str] = None
+        visit_date: Optional[date] = Field(
+            default=None,
+            validation_alias=AliasChoices("visit_date", "date"),
+        )
+
+        @field_validator("visit_date", mode="before")
+        @classmethod
+        def _parse_optional_visit_date(cls, value):
+            if value in (None, ""):
+                return None
+            if isinstance(value, str):
+                raw = value.strip()
+                for fmt in ("%Y-%m-%d", "%b, %Y", "%B, %Y", "%b %Y", "%B %Y"):
+                    try:
+                        return datetime.strptime(raw, fmt).date()
+                    except ValueError:
+                        continue
+            return value
 
     class FYPPayload(BaseModel):
         title: Optional[str] = None
         company: Optional[str] = None
         objectives: Optional[str] = None
 
-    class CertificatePayload(BaseModel):
-        name: Optional[str] = None
+    # class CertificatePayload(BaseModel):
+    #     name: Optional[str] = None
 
-    class AchievementPayload(BaseModel):
-        description: Optional[str] = None
+    # class AchievementPayload(BaseModel):
+    #     description: Optional[str] = None
 
-    class SkillPayload(BaseModel):
-        name: Optional[str] = None
+    # class SkillPayload(BaseModel):
+    #     name: Optional[str] = None
 
-    class ExtraCurricularPayload(BaseModel):
-        activity: Optional[str] = None
+    # class ExtraCurricularPayload(BaseModel):
+    #     activity: Optional[str] = None
 
     class ReferencePayload(BaseModel):
         name: Optional[str] = None
@@ -98,10 +164,10 @@ class CVCreateRequest(BaseModel):
         validation_alias=AliasChoices("industrial_visits", "industrialVisits"),
     )
     fyp: Optional[FYPPayload] = None
-    certificates: list[CertificatePayload] = Field(default_factory=list)
-    achievements: list[AchievementPayload] = Field(default_factory=list)
-    skills: list[SkillPayload] = Field(default_factory=list)
-    extra_curricular: list[ExtraCurricularPayload] = Field(
+    certificates: list[str] = Field(default_factory=list)
+    achievements: list[str] = Field(default_factory=list)
+    skills: list[str] = Field(default_factory=list)
+    extra_curricular: list[str] = Field(
         default_factory=list,
         validation_alias=AliasChoices("extra_curricular", "extraCurricular"),
     )
