@@ -79,7 +79,8 @@ def _serialize_cv(cv: CVSubmission) -> dict[str, Any]:
                 "cv_id": str(academic.cv_id),
                 "degree": academic.degree,
                 "university": academic.university,
-                "year": academic.year,
+                "from_date": _to_iso(academic.from_date),
+                "to_date": _to_iso(academic.to_date),
                 "gpa": academic.gpa,
                 "majors": academic.majors,
             }
@@ -92,6 +93,7 @@ def _serialize_cv(cv: CVSubmission) -> dict[str, Any]:
                 "organization": internship.organization,
                 "position": internship.position,
                 "field": internship.field,
+                "duties": internship.duties or [],
                 "from_date": _to_iso(internship.from_date),
                 "to_date": _to_iso(internship.to_date),
             }
@@ -103,7 +105,7 @@ def _serialize_cv(cv: CVSubmission) -> dict[str, Any]:
                 "cv_id": str(visit.cv_id),
                 "organization": visit.organization,
                 "purpose": visit.purpose,
-                "visit_date": visit.visit_date,
+                "visit_date": _to_iso(visit.visit_date),
             }
             for visit in cv.industrial_visits
         ],
@@ -179,6 +181,15 @@ def _build_summary(cv: CVSubmission) -> dict[str, Any]:
 
 
 def _attach_cv_sections(cv: CVSubmission, data: dict[str, Any]) -> None:
+    def _normalize_named_items(items: list[Any], key: str) -> list[dict[str, Any]]:
+        normalized: list[dict[str, Any]] = []
+        for item in items:
+            if isinstance(item, dict):
+                normalized.append(item)
+            elif isinstance(item, str):
+                normalized.append({key: item})
+        return normalized
+
     personal_info = data.get("personal_info")
     cv.personal_info = PersonalInfo(**personal_info) if personal_info else None
 
@@ -186,10 +197,18 @@ def _attach_cv_sections(cv: CVSubmission, data: dict[str, Any]) -> None:
     cv.internships = [Internship(**item) for item in data.get("internships", [])]
     cv.industrial_visits = [IndustrialVisit(**item) for item in data.get("industrial_visits", [])]
     cv.fyp = FYP(**data["fyp"]) if data.get("fyp") else None
-    cv.certificates = [Certificate(name=cert_name) for cert_name in data.get("certificates", [])]
-    cv.achievements = [Achievement(description=achievement_desc) for achievement_desc in data.get("achievements", [])]
-    cv.skills = [Skill(name=skill_name) for skill_name in data.get("skills", [])]
-    cv.extra_curricular = [ExtraCurricular(activity=activity) for activity in data.get("extra_curricular", [])]
+    cv.certificates = [
+        Certificate(**item) for item in _normalize_named_items(data.get("certificates", []), "name")
+    ]
+    cv.achievements = [
+        Achievement(**item) for item in _normalize_named_items(data.get("achievements", []), "description")
+    ]
+    cv.skills = [
+        Skill(**item) for item in _normalize_named_items(data.get("skills", []), "name")
+    ]
+    cv.extra_curricular = [
+        ExtraCurricular(**item) for item in _normalize_named_items(data.get("extra_curricular", []), "activity")
+    ]
     cv.references = [Reference(**item) for item in data.get("references", [])]
 
 
@@ -210,23 +229,27 @@ def _cv_load_options() -> list:
 
 
 async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) -> dict[str, Any]:
-    cv = CVSubmission(
-        student_id=current_user.id,
-        status=CVStatus.pending_advisor,
-        student_image_url=data.get("student_image"),
-        career_counseling=data.get("career_counseling", False),
-    )
-    _attach_cv_sections(cv, data)
+    try:
+        
+        cv = CVSubmission(
+            student_id=current_user.id,
+            status=CVStatus.pending_advisor,
+            student_image_url=data.get("student_image"),
+            career_counseling=data.get("career_counseling", False),
+        )
+        _attach_cv_sections(cv, data)
 
-    db.add(cv)
-    await db.commit()
+        db.add(cv)
+        await db.commit()
 
-    result = await db.execute(
-        select(CVSubmission)
-        .options(*_cv_load_options())
-        .where(CVSubmission.cv_id == cv.cv_id)
-    )
-    return _serialize_cv(result.scalar_one())
+        result = await db.execute(
+            select(CVSubmission)
+            .options(*_cv_load_options())
+            .where(CVSubmission.cv_id == cv.cv_id)
+        )
+        return _serialize_cv(result.scalar_one())
+    except Exception as e:
+        print(f"Error creating CV: {e}")
 
 
 async def list_cvs(current_user: User, db: AsyncSession) -> list[dict[str, Any]]:
