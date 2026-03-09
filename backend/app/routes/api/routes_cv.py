@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Body
 from app.schemas.cv_schema import CVRequest
-from app.core.config import TEMPLATE_ID
 from app.services.pdf_service import generate_and_upload_cv, download_file_from_drive
 import zipfile
 from io import BytesIO  # <--- ADD THIS IMPORT

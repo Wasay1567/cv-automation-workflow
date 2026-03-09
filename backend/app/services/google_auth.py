@@ -45,4 +45,3 @@ def get_credentials():
 # Initialize the services using YOUR personal account
 credentials = get_credentials()
 drive_service = build("drive", "v3", credentials=credentials)
-slides_service = build("slides", "v1", credentials=credentials)
