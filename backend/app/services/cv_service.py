@@ -186,10 +186,10 @@ def _attach_cv_sections(cv: CVSubmission, data: dict[str, Any]) -> None:
     cv.internships = [Internship(**item) for item in data.get("internships", [])]
     cv.industrial_visits = [IndustrialVisit(**item) for item in data.get("industrial_visits", [])]
     cv.fyp = FYP(**data["fyp"]) if data.get("fyp") else None
-    cv.certificates = [Certificate(**item) for item in data.get("certificates", [])]
-    cv.achievements = [Achievement(**item) for item in data.get("achievements", [])]
-    cv.skills = [Skill(**item) for item in data.get("skills", [])]
-    cv.extra_curricular = [ExtraCurricular(**item) for item in data.get("extra_curricular", [])]
+    cv.certificates = [Certificate(name=cert_name) for cert_name in data.get("certificates", [])]
+    cv.achievements = [Achievement(description=achievement_desc) for achievement_desc in data.get("achievements", [])]
+    cv.skills = [Skill(name=skill_name) for skill_name in data.get("skills", [])]
+    cv.extra_curricular = [ExtraCurricular(activity=activity) for activity in data.get("extra_curricular", [])]
     cv.references = [Reference(**item) for item in data.get("references", [])]
 
 
@@ -210,7 +210,6 @@ def _cv_load_options() -> list:
 
 
 async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) -> dict[str, Any]:
-    print(data)
     cv = CVSubmission(
         student_id=current_user.id,
         status=CVStatus.pending_advisor,
