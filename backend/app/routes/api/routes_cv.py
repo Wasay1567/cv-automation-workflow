@@ -1,7 +1,5 @@
 from fastapi import APIRouter, HTTPException, Body
 from app.schemas.cv_schema import CVRequest
-from app.services.drive_service import copy_template
-from app.services.slides_service import replace_placeholders
 from app.core.config import TEMPLATE_ID
 from app.services.pdf_service import generate_and_upload_cv, download_file_from_drive
 import zipfile
@@ -12,7 +10,7 @@ from app.services.google_auth import drive_service
 
 router = APIRouter()
 
-
+'''
 @router.post("/generate-cv")
 async def generate_cv(data: CVRequest):
     print("Template ID:", TEMPLATE_ID)
@@ -30,7 +28,7 @@ async def generate_cv(data: CVRequest):
     return {
         "status": "CV generated",
         "presentation_id": presentation_id
-    }
+    }'''
 
 @router.post("/generate-pdf")
 async def generate_pdf_endpoint(data: CVRequest):
