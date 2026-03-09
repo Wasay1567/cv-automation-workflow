@@ -5,6 +5,7 @@ from app.services.admin import (
 	get_pending_advisors as get_pending_advisors_service,
 	approve_advisor as approve_advisor_service,
 	reject_advisor as reject_advisor_service,
+	notify_students_without_cv as notify_students_without_cv_service,
 )
 
 
@@ -24,3 +25,7 @@ async def reject_advisor(advisor_id: str, db: AsyncSession):
 	if result is None:
 		raise HTTPException(status_code=404, detail="Advisor not found or already processed")
 	return result
+
+
+async def notify_students_without_cv(subject: str, body: str, deadline, db: AsyncSession):
+	return await notify_students_without_cv_service(subject, body, deadline, db)
