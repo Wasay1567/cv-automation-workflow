@@ -1,254 +1,288 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        @page {
+            size: letter;
+            margin: 0;
+        }
 
-<style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-@page {
-    size: A4;
-    margin: 0;
-}
+        html, body {
+            height: 100%;
+            font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            color: #333333;
+            line-height: 1.4;
+        }
 
-* {
-    margin: 0;
-    padding: 0;
-    line-height: 1.3;
-}
+        .layout-table {
+            width: 100%;
+            height: 11in;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
 
-body {
-    font-family: Helvetica, Arial, sans-serif;
-    color: #2c2c2c;
-    background: #ffffff;
-}
+        /* --- SIDEBAR (25%) --- */
+        .sidebar {
+            width: 30%;
+            height: 100%;
+            background-color: green;
+            color: #ffffff;
+            vertical-align: top;
+            padding: 40px 20px;
+        }
 
-/* HEADER */
+        .name-header h1 { font-size: 20pt; line-height: 1.1; text-transform: uppercase; margin-bottom: 5px; }
+        .profession-title { font-size: 10pt; font-weight: bold; color: #e0e0e0; margin-bottom: 30px; letter-spacing: 1px; }
+        .side-section-title { font-size: 11pt; font-weight: bold; border-bottom: 1px solid #ffffff; margin-bottom: 12px; padding-bottom: 3px; margin-top: 25px; }
+        .contact-info { font-size: 8.5pt; margin-bottom: 5px; }
+        .list-item { font-size: 9pt; margin-bottom: 8px; }
+        .item-label { display: block; font-weight: bold; }
+        .item-meta { font-size: 7.5pt; color: #e0e0e0; }
 
-.header {
-    background: #1f3a5f;
-    color: white;
-    padding: 35px 40px;
-}
+        /* --- MAIN CONTENT (75%) --- */
+        /* --- MAIN CONTENT (75%) --- */
+        .main-content {
+            width: 70%;
+            height: 100%;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 50%, #dee2e6 100%);
+            /*vertical-align: top;*/
+            padding: 50px 45px; /* Ample breathing room from edges */
+            /* Improve text flow and ensure content fills area */
+            display: block;
+            position: relative;
+        }
+        .main-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="1" fill="%23ffffff" opacity="0.1"/></svg>') repeat;
+            pointer-events: none;
+        }
 
-.name {
-    font-size: 28pt;
-    font-weight: bold;
-    letter-spacing: 1px;
-}
+        /* Main section titles */
+        .main-section-title {
+            font-size: 14pt;
+            font-weight: 700;
+            color: #2c3e50;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            position: relative;
+            padding-left: 30px;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .main-section-title::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 6px;
+            height: 24px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border-radius: 3px;
+        }
 
-.title {
-    font-size: 13pt;
-    color: #c7e2ff;
-    margin-top: 6px;
-}
+        /* subtle divider used between sections */
+        .divider {
+            height: 2px;
+            background: linear-gradient(to right, #3498db, #bdc3c7, transparent);
+            margin: 10px 0 20px 0;
+            border-radius: 1px;
+        }
 
-/* MAIN LAYOUT */
+        .about-text {
+            font-size: 11pt;
+            color: #34495e;
+            margin-bottom: 25px;
+            line-height: 1.6;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #3498db;
+        }
 
-.content-table {
-    width: 100%;
-    border-collapse: collapse;
-}
+        /* Entries (experience / education) */
+        .entry-container {
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 1px solid #ecf0f1;
+            position: relative;
+            transition: transform 0.2s ease;
+        }
+        .entry-container:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+        }
+        .entry-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(to bottom, #3498db, #2980b9);
+            border-radius: 10px 0 0 10px;
+        }
 
-.sidebar {
-    width: 30%;
-    background: #f7f9fb;
-    padding: 25px;
-    vertical-align: top;
-    border-right: 1px solid #e5e9ef;
-}
+        .entry-header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
+        .entry-header-table td { vertical-align: top; }
 
-.main-body {
-    width: 70%;
-    padding: 30px 35px;
-    vertical-align: top;
-}
+        .entry-title {
+            font-size: 12pt;
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 4px;
+        }
+        .entry-date {
+            font-size: 9pt;
+            color: #7f8c8d;
+            text-align: right;
+            font-weight: 500;
+            background: #ecf0f1;
+            padding: 4px 8px;
+            border-radius: 12px;
+        }
 
-/* SECTION TITLES */
+        .entry-subtitle {
+            font-size: 10pt;
+            color: #34495e;
+            margin-bottom: 8px;
+            font-style: italic;
+            font-weight: 600;
+        }
+        .entry-desc {
+            font-size: 10pt;
+            color: #555555;
+            margin-bottom: 10px;
+            line-height: 1.5;
+        }
 
-h2 {
-    font-size: 12pt;
-    color: #1f3a5f;
-    margin-top: 20px;
-    margin-bottom: 10px;
-    border-bottom: 1px solid #dce3ea;
-    padding-bottom: 4px;
-}
-
-.sidebar-title {
-    font-size: 10pt;
-    font-weight: bold;
-    color: #1f3a5f;
-    margin-top: 15px;
-    margin-bottom: 8px;
-}
-
-/* TEXT */
-
-.text-small {
-    font-size: 9pt;
-    color: #555;
-}
-
-.text-sidebar {
-    font-size: 9pt;
-    color: #444;
-    margin-bottom: 5px;
-}
-
-/* EXPERIENCE */
-
-.job-container {
-    margin-bottom: 12px;
-}
-
-.job-title {
-    font-size: 11pt;
-    font-weight: bold;
-    color: #222;
-}
-
-.company {
-    font-size: 10pt;
-    color: #4b6b8a;
-    font-weight: bold;
-}
-
-.date {
-    font-size: 8.5pt;
-    color: #888;
-    margin-bottom: 4px;
-}
-
-.desc {
-    font-size: 9pt;
-    color: #444;
-    text-align: justify;
-    margin-bottom: 8px;
-}
-
-/* SKILLS */
-
-.skill-tag {
-    display: inline-block;
-    background: #e8eef5;
-    padding: 4px 7px;
-    margin-bottom: 4px;
-    font-size: 8.5pt;
-    border-radius: 2px;
-}
-
-/* LANGUAGE BAR */
-
-.lang-container {
-    margin-bottom: 6px;
-}
-
-.lang-name {
-    font-size: 9pt;
-}
-
-.lang-bar {
-    height: 5px;
-    background: #e2e8f0;
-    margin-top: 2px;
-}
-
-.lang-fill {
-    height: 5px;
-    background: #1f3a5f;
-}
-
-</style>
+        /* Make sure long content doesn't overflow page on print - allow natural breaks */
+        @media print {
+            html, body { height: auto; }
+            .layout-table { height: auto; }
+            .main-content, .sidebar { height: auto; page-break-inside: avoid; }
+            .main-content {
+                background: white !important;
+            }
+            .main-content::before { display: none; }
+            .main-section-title {
+                color: #222222 !important;
+                -webkit-text-fill-color: #222222 !important;
+                padding-left: 0;
+            }
+            .main-section-title::before { display: none; }
+            .divider { background: #e6e6e6 !important; height: 1px !important; }
+            .about-text {
+                background: transparent !important;
+                padding: 0 !important;
+                box-shadow: none !important;
+                border-left: none !important;
+            }
+            .entry-container {
+                background: transparent !important;
+                padding: 10px 0 !important;
+                box-shadow: none !important;
+                border: none !important;
+                margin-bottom: 14px !important;
+            }
+            .entry-container::before { display: none; }
+            .entry-date { background: transparent !important; padding: 0 !important; }
+        }
+    </style>
 </head>
-
 <body>
 
-<div class="header">
-    <div class="name">{{ name }}</div>
-    <div class="title">{{ profession }}</div>
-</div>
+    <table class="layout-table">
+        <tr>
+            <td class="sidebar">
+                
+                <div class="name-header"><h1>{{ name }}</h1></div>
+                <p class="profession-title">{{ profession }}</p>
 
-<table class="content-table">
+                <h2 class="side-section-title">CONTACT</h2>
+                <div class="contact-info">
+                    <p>{{ phone }}</p>
+                    <p>{{ email }}</p>
+                    <p>{{ address }}</p>
+                </div>
 
-<tr>
+                <h2 class="side-section-title">SKILLS</h2>
+                {% for skill in skills %}
+                <div class="list-item">
+                    <span class="item-label">{{ skill.name }}</span>
+                    <span class="item-meta">Level: {{ skill.level }}/5</span>
+                </div>
+                {% endfor %}
 
-<td class="sidebar">
+                <h2 class="side-section-title">LANGUAGES</h2>
+                {% for lang in languages %}
+                <div class="list-item">
+                    <span class="item-label">{{ lang.name }}</span>
+                    <span class="item-meta">{{ lang.percent }}%</span>
+                </div>
+                {% endfor %}
+            </td>
 
-<div class="sidebar-title">CONTACT</div>
+            <td class="main-content">
+                <h2 class="main-section-title">Professional Summary</h2>
+                <div class="divider"></div>
+                <p class="about-text">{{ about_me }}</p>
 
-<div class="text-sidebar">{{ address }}</div>
-<div class="text-sidebar">{{ phone }}</div>
-<div class="text-sidebar">{{ email }}</div>
+                <h2 class="main-section-title">Experience</h2>
+                <div class="divider"></div>
+                
+                {% for job in experience %}
+                <div class="entry-container">
+                    <table class="entry-header-table">
+                        <tr>
+                            <td class="entry-title">{{ job.title }}</td>
+                            <td class="entry-date">{{ job.date }}</td>
+                        </tr>
+                    </table>
+                    <p class="entry-subtitle">{{ job.company }}</p>
+                    <p class="entry-desc">{{ job.description }}</p>
+                </div>
+                {% endfor %}
 
-
-<div class="sidebar-title">SKILLS</div>
-
-{% for skill in skills %}
-<div class="skill-tag">{{ skill.name }}</div>
-{% endfor %}
-
-
-<div class="sidebar-title">LANGUAGES</div>
-
-{% for lang in languages %}
-<div class="lang-container">
-
-<div class="lang-name">{{ lang.name }}</div>
-
-<div class="lang-bar">
-<div class="lang-fill" style="width: {{ lang.percent }}%;"></div>
-</div>
-
-</div>
-{% endfor %}
-
-</td>
-
-
-<td class="main-body">
-
-<h2>About Me</h2>
-<p class="desc">{{ about_me }}</p>
-
-
-<h2>Professional Experience</h2>
-
-{% for job in experience %}
-
-<div class="job-container">
-
-<div class="job-title">{{ job.title }}</div>
-<div class="company">{{ job.company }}</div>
-<div class="date">{{ job.date }}</div>
-
-<p class="desc">{{ job.description }}</p>
-
-</div>
-
-{% endfor %}
-
-
-<h2>Education</h2>
-
-{% for edu in education %}
-
-<div class="job-container">
-
-<div class="job-title">{{ edu.degree }}</div>
-<div class="company">{{ edu.institution }}</div>
-<div class="date">{{ edu.date }}</div>
-
-<p class="desc">{{ edu.description }}</p>
-
-</div>
-
-{% endfor %}
-
-</td>
-
-</tr>
-
-</table>
+                <h2 class="main-section-title">Education</h2>
+                <div class="divider"></div>
+                
+                {% for edu in education %}
+                <div class="entry-container">
+                    <table class="entry-header-table">
+                        <tr>
+                            <td class="entry-title">{{ edu.degree }}</td>
+                            <td class="entry-date">{{ edu.date }}</td>
+                        </tr>
+                    </table>
+                    <p class="entry-subtitle">{{ edu.institution }}</p>
+                    <p class="entry-desc">{{ edu.description }}</p>
+                </div>
+                {% endfor %}
+            </td>
+        </tr>
+    </table>
 
 </body>
 </html>

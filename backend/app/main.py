@@ -2,16 +2,12 @@ from fastapi import FastAPI
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
 # from app.routes.cv_routes import router as cv_router
-from app.routes.users import router as users_router
-from app.routes.admin import router as admin_router
-from app.routes.webhook import router as webhook_router
-from app.database import init_db
 
 from app.routes.api.routes_cv import router as cv_router
 
 app = FastAPI(
-    title="CV Automation Workflow API",
-    description="Backend API for automating CV generation and management",
+    title="CV Generation MicroService",
+    description="Microservice to generate CVs using Google Slides and convert to PDF, built with FastAPI",
     version="1.0.0",
 )
 
@@ -22,20 +18,6 @@ app.add_middleware(
     allow_headers=["*"],
     allow_credentials=True,
 )
-
-
-@app.on_event("startup")
-async def startup_event():
-    init_db()
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
-
-# app.include_router(cv_router, prefix="/api")
-app.include_router(users_router, prefix="/api")
-app.include_router(admin_router, prefix="/api")
-app.include_router(webhook_router)
 app.include_router(cv_router)
 
 if __name__ == "__main__":
