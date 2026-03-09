@@ -3,7 +3,7 @@ import asyncio
 from typing import Any
 
 from fastapi.concurrency import run_in_threadpool
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -229,6 +229,11 @@ def _cv_load_options() -> list:
 
 
 async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) -> dict[str, Any]:
+    existing_cv_ids_result = await db.execute(
+        select(CVSubmission.cv_id).where(CVSubmission.student_id == current_user.id)
+    )
+    existing_cv_ids = list(existing_cv_ids_result.scalars().all())
+
     cv = CVSubmission(
         student_id=current_user.id,
         status=CVStatus.pending_advisor,
@@ -249,7 +254,15 @@ async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) 
         .options(*_cv_load_options())
         .where(CVSubmission.cv_id == cv.cv_id)
     )
-    return _serialize_cv(result.scalar_one())
+    created_cv = result.scalar_one()
+
+    if existing_cv_ids:
+        await db.execute(
+            delete(CVSubmission).where(CVSubmission.cv_id.in_(existing_cv_ids))
+        )
+        await db.commit()
+
+    return _serialize_cv(created_cv)
 
 
 async def list_cvs(current_user: User, db: AsyncSession) -> list[dict[str, Any]]:
