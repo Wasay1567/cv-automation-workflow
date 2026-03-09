@@ -229,27 +229,27 @@ def _cv_load_options() -> list:
 
 
 async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) -> dict[str, Any]:
+    cv = CVSubmission(
+        student_id=current_user.id,
+        status=CVStatus.pending_advisor,
+        student_image_url=data.get("student_image"),
+        career_counseling=data.get("career_counseling", False),
+    )
+    _attach_cv_sections(cv, data)
+
+    db.add(cv)
     try:
-        
-        cv = CVSubmission(
-            student_id=current_user.id,
-            status=CVStatus.pending_advisor,
-            student_image_url=data.get("student_image"),
-            career_counseling=data.get("career_counseling", False),
-        )
-        _attach_cv_sections(cv, data)
-
-        db.add(cv)
         await db.commit()
+    except Exception:
+        await db.rollback()
+        raise
 
-        result = await db.execute(
-            select(CVSubmission)
-            .options(*_cv_load_options())
-            .where(CVSubmission.cv_id == cv.cv_id)
-        )
-        return _serialize_cv(result.scalar_one())
-    except Exception as e:
-        print(f"Error creating CV: {e}")
+    result = await db.execute(
+        select(CVSubmission)
+        .options(*_cv_load_options())
+        .where(CVSubmission.cv_id == cv.cv_id)
+    )
+    return _serialize_cv(result.scalar_one())
 
 
 async def list_cvs(current_user: User, db: AsyncSession) -> list[dict[str, Any]]:
