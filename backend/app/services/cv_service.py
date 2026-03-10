@@ -1,12 +1,18 @@
 from datetime import date, datetime
 import asyncio
+import json
+import logging
+import re
 from typing import Any
+from uuid import UUID
 
+import httpx
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+import app.database as database
 from app.services.email_service import EmailService
 from app.models import (
     Academic,
@@ -25,6 +31,22 @@ from app.models import (
     UserRole,
 )
 
+logger = logging.getLogger(__name__)
+
+
+def _log_task_exception(task: asyncio.Task[Any], task_name: str) -> None:
+    try:
+        exc = task.exception()
+    except asyncio.CancelledError:
+        logger.info("Background task '%s' was cancelled", task_name)
+        return
+    except Exception:
+        logger.exception("Unable to inspect background task '%s' result", task_name)
+        return
+
+    if exc is not None:
+        logger.exception("Background task '%s' failed", task_name, exc_info=exc)
+
 
 def _schedule_rejection_email(to_email: str, rejection_comment: str | None) -> None:
     student_name = to_email.split("@")[0] if to_email else "Student"
@@ -36,9 +58,174 @@ def _schedule_rejection_email(to_email: str, rejection_comment: str | None) -> N
             rejection_comment,
         )
     )
+    task.add_done_callback(lambda t: _log_task_exception(t, "send_rejection_email"))
+    logger.info("Scheduled rejection email for recipient=%s", to_email)
 
-    # Prevent unhandled task exceptions from being silently ignored.
-    task.add_done_callback(lambda t: t.exception())
+
+def _extract_json_object(raw_text: str) -> dict[str, Any] | None:
+    cleaned = raw_text.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+
+    try:
+        parsed = json.loads(cleaned)
+        return parsed if isinstance(parsed, dict) else None
+    except json.JSONDecodeError:
+        pass
+
+    match = re.search(r"\{[\s\S]*\}", cleaned)
+    if not match:
+        return None
+
+    try:
+        parsed = json.loads(match.group(0))
+        return parsed if isinstance(parsed, dict) else None
+    except json.JSONDecodeError:
+        return None
+
+
+def _get_ai_summary_and_title(cv_data: dict[str, Any]) -> dict[str, str]:
+    prompt = (
+        "You are a professional resume writer.\n\n"
+        "Using the following student information generate:\n\n"
+        "1. Professional CV summary (3-4 lines)\n"
+        "2. Best job title for the candidate.\n\n"
+        "Return JSON:\n\n"
+        "{\n"
+        ' "summary": "...",\n'
+        ' "title": "..."\n'
+        "}\n\n"
+        "Student Data:\n"
+        f"{json.dumps(cv_data, ensure_ascii=True)}"
+    )
+
+    try:
+        from app.services.gen import get_gemini_response
+
+        raw_response = get_gemini_response(prompt)
+        parsed = _extract_json_object(raw_response or "") or {}
+    except Exception:
+        logger.exception("AI summary/title generation failed; using empty fallback values")
+        parsed = {}
+
+    summary = parsed.get("summary") if isinstance(parsed.get("summary"), str) else ""
+    title = parsed.get("title") if isinstance(parsed.get("title"), str) else ""
+    return {"summary": summary.strip(), "title": title.strip()}
+
+
+def _build_pdf_payload(cv_data: dict[str, Any], ai_result: dict[str, str]) -> dict[str, Any]:
+    personal_info = cv_data.get("personal_info") or {}
+    internships = cv_data.get("internships") or []
+    academics = cv_data.get("academics") or []
+    certificates = cv_data.get("certificates") or []
+    skills = cv_data.get("skills") or []
+
+    student_email = cv_data.get("student_email") or personal_info.get("email")
+    inferred_name = (student_email.split("@")[0] if isinstance(student_email, str) and "@" in student_email else "Student")
+
+    payload: dict[str, Any] = {
+        "name": personal_info.get("name") or inferred_name,
+        "profession": ai_result.get("title") or "Student",
+        "phone": personal_info.get("cell") or "",
+        "email": personal_info.get("email") or student_email or "",
+        "address": personal_info.get("address") or "",
+        "about_me": ai_result.get("summary") or "",
+        "profile_image_url": cv_data.get("student_image") or "",
+        "skills": [item.get("name") for item in skills if isinstance(item, dict) and item.get("name")],
+        "experience": [
+            {
+                "company": internship.get("organization"),
+                "from_date": internship.get("from_date"),
+                "to_date": internship.get("to_date"),
+                "title": internship.get("position") or internship.get("field") or "",
+                "description": "; ".join((internship.get("duties") or [])),
+            }
+            for internship in internships
+            if isinstance(internship, dict)
+        ],
+        "education": [
+            {
+                "institution": academic.get("university"),
+                "from_date": academic.get("from_date"),
+                "to_date": academic.get("to_date"),
+                "degree": academic.get("degree"),
+                "majors": academic.get("majors"),
+            }
+            for academic in academics
+            if isinstance(academic, dict)
+        ],
+    }
+
+    certificate_names = [
+        item.get("name") for item in certificates if isinstance(item, dict) and item.get("name")
+    ]
+    if certificate_names:
+        payload["certificates"] = certificate_names
+
+    return payload
+
+
+async def _generate_cv_pdf_and_store_file_id(cv_id: UUID) -> None:
+    try:
+        if database.AsyncSessionLocal is None:
+            database.init_db()
+
+        logger.info("Starting background CV PDF generation for cv_id=%s", cv_id)
+        async with database.AsyncSessionLocal() as session:
+            result = await session.execute(
+                select(CVSubmission)
+                .options(*_cv_load_options())
+                .where(CVSubmission.cv_id == cv_id)
+            )
+            cv = result.scalar_one_or_none()
+            if cv is None:
+                logger.warning("Skipping PDF generation: CV not found for cv_id=%s", cv_id)
+                return
+
+            if cv.status != CVStatus.approved:
+                logger.warning(
+                    "Skipping PDF generation: CV status is %s for cv_id=%s",
+                    cv.status.value,
+                    cv_id,
+                )
+                return
+
+            serialized = _serialize_cv(cv)
+            ai_result = await run_in_threadpool(_get_ai_summary_and_title, serialized)
+            pdf_payload = _build_pdf_payload(serialized, ai_result)
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post("http://localhost:5000/generate-pdf", json=pdf_payload)
+                response.raise_for_status()
+                response_data = response.json() if response.content else {}
+
+            file_id = (
+                response_data.get("file_id")
+                or response_data.get("id")
+                or response_data.get("drive_file_id")
+            )
+            if not file_id:
+                logger.error("PDF generator response missing file id for cv_id=%s", cv_id)
+                return
+
+            cv.cv_drive_url = str(file_id)
+            await session.commit()
+            logger.info(
+                "Stored generated CV drive file id for cv_id=%s file_id=%s",
+                cv_id,
+                file_id,
+            )
+    except httpx.HTTPError:
+        logger.exception("PDF generation HTTP call failed for cv_id=%s", cv_id)
+    except Exception:
+        logger.exception("Unexpected error while generating/storing CV PDF for cv_id=%s", cv_id)
+
+
+def _schedule_cv_generation(cv_id: UUID) -> None:
+    task = asyncio.create_task(_generate_cv_pdf_and_store_file_id(cv_id))
+    task.add_done_callback(lambda t: _log_task_exception(t, "generate_cv_pdf"))
+    logger.info("Scheduled background CV PDF generation for cv_id=%s", cv_id)
 
 
 def _to_iso(value: date | datetime | None) -> str | None:
@@ -247,6 +434,7 @@ async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) 
         await db.commit()
     except Exception:
         await db.rollback()
+        logger.exception("Failed to create CV for student_id=%s", current_user.id)
         raise
 
     result = await db.execute(
@@ -331,7 +519,12 @@ async def update_cv(cv_id: str, data: dict[str, Any], current_user: User, db: As
     cv.rejection_comment = None
     _attach_cv_sections(cv, data)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception("Failed to update CV cv_id=%s for student_id=%s", cv_id, current_user.id)
+        raise
     await db.refresh(cv)
 
     refreshed = await get_cv(cv_id, current_user, db)
@@ -358,7 +551,17 @@ async def approve_cv(cv_id: str, current_user: User, db: AsyncSession) -> dict[s
 
     cv.status = CVStatus.approved
     cv.rejection_comment = None
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception("Failed to approve CV cv_id=%s by user_id=%s", cv_id, current_user.id)
+        raise
+
+    try:
+        _schedule_cv_generation(cv.cv_id)
+    except Exception:
+        logger.exception("Failed to schedule PDF generation for approved cv_id=%s", cv_id)
 
     return {
         "cv_id": str(cv.cv_id),
@@ -374,7 +577,12 @@ async def reject_cv(cv_id: str, comment: str | None, current_user: User, db: Asy
 
     cv.status = CVStatus.rejected
     cv.rejection_comment = comment
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        logger.exception("Failed to reject CV cv_id=%s by user_id=%s", cv_id, current_user.id)
+        raise
 
     student_email_result = await db.execute(
         select(User.email).where(User.id == cv.student_id)
@@ -382,7 +590,12 @@ async def reject_cv(cv_id: str, comment: str | None, current_user: User, db: Asy
     student_email = student_email_result.scalar_one_or_none()
 
     if student_email:
-        _schedule_rejection_email(student_email, comment)
+        try:
+            _schedule_rejection_email(student_email, comment)
+        except Exception:
+            logger.exception("Failed to schedule rejection email for cv_id=%s", cv_id)
+    else:
+        logger.warning("Student email not found for rejected cv_id=%s student_id=%s", cv_id, cv.student_id)
 
     return {
         "cv_id": str(cv.cv_id),

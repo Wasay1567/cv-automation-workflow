@@ -11,3 +11,4 @@ python-dotenv
 svix
 resend
 clerk-backend-api
+google-generativeai
