@@ -1,288 +1,692 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <style>
-        @page {
-            size: letter;
-            margin: 0;
-        }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>{{ name }} – Resume</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+  @page {
+    size: letter;
+    margin: 0;
+  }
 
-        html, body {
-            height: 100%;
-            font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif;
-            color: #333333;
-            line-height: 1.4;
-        }
+  html, body {
+    height: 100%;
+    background: #d4d0cb;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 20px;
+    font-family: Helvetica, Arial, sans-serif;
+  }
 
-        .layout-table {
-            width: 100%;
-            height: 11in;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
+  .resume {
+    padding: 10px 40px;
+    padding-right: 0px;
+    width: 794px;
+    min-height: 1123px;
+    background: #f0ede8;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,.25);
+  }
 
-        /* --- SIDEBAR (25%) --- */
-        .sidebar {
-            width: 30%;
-            height: 100%;
-            background-color: green;
-            color: #ffffff;
-            vertical-align: top;
-            padding: 40px 20px;
-        }
+  .sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    background: #f0ede8;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
 
-        .name-header h1 { font-size: 20pt; line-height: 1.1; text-transform: uppercase; margin-bottom: 5px; }
-        .profession-title { font-size: 10pt; font-weight: bold; color: #e0e0e0; margin-bottom: 30px; letter-spacing: 1px; }
-        .side-section-title { font-size: 11pt; font-weight: bold; border-bottom: 1px solid #ffffff; margin-bottom: 12px; padding-bottom: 3px; margin-top: 25px; }
-        .contact-info { font-size: 8.5pt; margin-bottom: 5px; }
-        .list-item { font-size: 9pt; margin-bottom: 8px; }
-        .item-label { display: block; font-weight: bold; }
-        .item-meta { font-size: 7.5pt; color: #e0e0e0; }
+  .sidebar-photo-zone {
+    flex-shrink: 0;
+    height: 170px;
+    background: white;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    position: relative;
+    z-index: 2;
+    overflow: visible;
+  }
 
-        /* --- MAIN CONTENT (75%) --- */
-        /* --- MAIN CONTENT (75%) --- */
-        .main-content {
-            width: 70%;
-            height: 100%;
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 50%, #dee2e6 100%);
-            /*vertical-align: top;*/
-            padding: 50px 45px; /* Ample breathing room from edges */
-            /* Improve text flow and ensure content fills area */
-            display: block;
-            position: relative;
-        }
-        .main-content::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="1" fill="%23ffffff" opacity="0.1"/></svg>') repeat;
-            pointer-events: none;
-        }
+  .photo-placeholder {
+    width: 250px;
+    height: 250px;
+    border-radius: 50%;
+    background: #7a7168;
+    border: 5px solid #023685;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transform: translateY(85px);
+    box-shadow: 0 0 0 20px white, 0 0 27px 10px white, 0 20px 22px rgba(0,0,0,.2);
+  }
 
-        /* Main section titles */
-        .main-section-title {
-            font-size: 14pt;
-            font-weight: 700;
-            color: #2c3e50;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-top: 20px;
-            margin-bottom: 10px;
-            position: relative;
-            padding-left: 30px;
-            background: linear-gradient(90deg, #3498db, #2980b9);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        .main-section-title::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 6px;
-            height: 24px;
-            background: linear-gradient(135deg, #3498db, #2980b9);
-            border-radius: 3px;
-        }
+  .photo-placeholder img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
 
-        /* subtle divider used between sections */
-        .divider {
-            height: 2px;
-            background: linear-gradient(to right, #3498db, #bdc3c7, transparent);
-            margin: 10px 0 20px 0;
-            border-radius: 1px;
-        }
+  .photo-fallback {
+    width: 100%;
+    height: 100%;
+    display: table;
+    color: #d8d2c8;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 42px;
+    font-weight: 800;
+    letter-spacing: 2px;
+  }
 
-        .about-text {
-            font-size: 11pt;
-            color: #34495e;
-            margin-bottom: 25px;
-            line-height: 1.6;
-            background: rgba(255, 255, 255, 0.8);
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid #3498db;
-        }
+  .photo-fallback span {
+    display: table-cell;
+    vertical-align: middle;
+    text-align: center;
+  }
 
-        /* Entries (experience / education) */
-        .entry-container {
-            margin-bottom: 20px;
-            background: rgba(255, 255, 255, 0.9);
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            border: 1px solid #ecf0f1;
-            position: relative;
-            transition: transform 0.2s ease;
-        }
-        .entry-container:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.15);
-        }
-        .entry-container::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 4px;
-            height: 100%;
-            background: linear-gradient(to bottom, #3498db, #2980b9);
-            border-radius: 10px 0 0 10px;
-        }
+  .sidebar-body {
+    flex: 1;
+    background: #023685;
+    margin-top: 0;
+    padding: 147px 22px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 22px;
+    position: relative;
+    z-index: 1;
+  }
 
-        .entry-header-table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-        .entry-header-table td { vertical-align: top; }
+  .s-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 14.5px;
+    color: #f0ede8;
+    margin-bottom: 10px;
+  }
 
-        .entry-title {
-            font-size: 12pt;
-            font-weight: 700;
-            color: #2c3e50;
-            margin-bottom: 4px;
-        }
-        .entry-date {
-            font-size: 9pt;
-            color: #7f8c8d;
-            text-align: right;
-            font-weight: 500;
-            background: #ecf0f1;
-            padding: 4px 8px;
-            border-radius: 12px;
-        }
+  .s-section-title .icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
 
-        .entry-subtitle {
-            font-size: 10pt;
-            color: #34495e;
-            margin-bottom: 8px;
-            font-style: italic;
-            font-weight: 600;
-        }
-        .entry-desc {
-            font-size: 10pt;
-            color: #555555;
-            margin-bottom: 10px;
-            line-height: 1.5;
-        }
+  .s-section-title .icon svg {
+    width: 18px;
+    height: 18px;
+    fill: #f0ede8;
+  }
 
-        /* Make sure long content doesn't overflow page on print - allow natural breaks */
-        @media print {
-            html, body { height: auto; }
-            .layout-table { height: auto; }
-            .main-content, .sidebar { height: auto; page-break-inside: avoid; }
-            .main-content {
-                background: white !important;
-            }
-            .main-content::before { display: none; }
-            .main-section-title {
-                color: #222222 !important;
-                -webkit-text-fill-color: #222222 !important;
-                padding-left: 0;
-            }
-            .main-section-title::before { display: none; }
-            .divider { background: #e6e6e6 !important; height: 1px !important; }
-            .about-text {
-                background: transparent !important;
-                padding: 0 !important;
-                box-shadow: none !important;
-                border-left: none !important;
-            }
-            .entry-container {
-                background: transparent !important;
-                padding: 10px 0 !important;
-                box-shadow: none !important;
-                border: none !important;
-                margin-bottom: 14px !important;
-            }
-            .entry-container::before { display: none; }
-            .entry-date { background: transparent !important; padding: 0 !important; }
-        }
-    </style>
+  .about-text {
+    font-size: 11.5px;
+    color: black;
+    line-height: 1.65;
+    text-align: justify;
+  }
+
+  .contact-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .contact-list li {
+    font-size: 11.5px;
+    color: #d4cfc8;
+    line-height: 1.5;
+  }
+
+  .skill-list,
+  .lang-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .skill-list li,
+  .lang-list li {
+    font-size: 11.5px;
+    color: #d4cfc8;
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.5;
+  }
+
+  .skill-list li::before,
+  .lang-list li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: #f0ede8;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .certificate-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .certificate-list li {
+    font-size: 11.5px;
+    color: #d4cfc8;
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.5;
+  }
+
+  .certificate-list li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: #f0ede8;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .personality-score {
+    font-size: 11.5px;
+    color: #d4cfc8;
+    line-height: 1.5;
+  }
+
+  .personality-score .label-inline {
+    display: inline;
+    font-weight: 700;
+    color: #f0ede8;
+  }
+
+  .label {
+    display: block;
+    font-weight: 700;
+    color: #f0ede8;
+  }
+
+  .meta {
+    font-size: 10.5px;
+    color: #d4cfc8;
+  }
+
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    min-width: 0;
+  }
+
+  .main-header {
+    min-height: 275px;
+    max-height: 275px;
+    padding: 30px 28px;
+    padding-right: 0px;
+    margin: 10px 28px 18px;
+    margin-right: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .main-header h1 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 55px;
+    margin-top: -50px;
+    color: #2e2b28;
+    line-height: 1;
+    letter-spacing: -0.5px;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .main-header .role {
+    font-family: 'Open Sans', sans-serif;
+    font-size: 20px;
+    color: black;
+    font-weight: 400;
+    margin-top: 6px;
+  }
+
+  .main-body {
+    padding: 10px 36px 36px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    flex: 1;
+  }
+
+  .m-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: #2e2b28;
+    margin-bottom: 14px;
+  }
+
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .timeline-entry {
+    display: flex;
+    gap: 0;
+    position: relative;
+  }
+
+  .timeline-line {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 24px;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .timeline-line .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #023685;
+    margin-top: 4px;
+    flex-shrink: 0;
+    z-index: 1;
+  }
+
+  .timeline-line .vert {
+    width: 2px;
+    flex: 1;
+    background: #023685;
+    margin-top: 3px;
+    min-height: 30px;
+  }
+
+  .timeline-entry:last-child .timeline-line .vert {
+    background: transparent;
+  }
+
+  .timeline-content {
+    flex: 1;
+    padding-bottom: 4px;
+  }
+
+  .timeline-content .year {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 13.5px;
+    color: #2e2b28;
+    line-height: 1.4;
+  }
+
+  .timeline-content .institution {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    color: #2e2b28;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-top: 2px;
+  }
+
+  .timeline-content .degree,
+  .timeline-content .gpa {
+    font-size: 11.5px;
+    color: #4a4540;
+    margin-top: 2px;
+    line-height: 1.4;
+  }
+
+  .exp-bullets {
+    list-style: none;
+    margin-top: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .exp-bullets li {
+    font-size: 11.5px;
+    color: #4a4540;
+    padding-left: 14px;
+    position: relative;
+    line-height: 1.5;
+  }
+
+  .exp-bullets li::before {
+    content: '•';
+    position: absolute;
+    left: 0;
+    color: #2e2b28;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .section-divider {
+    height: 1px;
+    background: transparent;
+    margin: 0;
+  }
+
+  .s-section-title {
+    font-size: 16px;
+  }
+
+  .about-text,
+  .contact-list li,
+  .skill-list li,
+  .lang-list li,
+  .timeline-content .degree,
+  .timeline-content .gpa,
+  .exp-bullets li {
+    font-size: 13px;
+  }
+
+  .m-section-title {
+    font-size: 16.5px;
+  }
+
+  .timeline-content .year {
+    font-size: 14.5px;
+  }
+
+  .timeline-content .institution {
+    font-size: 12px;
+  }
+
+  @media print {
+    html,
+    body {
+      background: #ffffff !important;
+      padding: 10px 15px !important;
+      padding-bottom: 0px !important;
+      margin: 0 !important;
+      display: block !important;
+      height: auto !important;
+    }
+
+    .resume {
+      width: 8.5in !important;
+      min-height: 11in !important;
+      margin: 0 !important;
+      /* padding: 0px 40px !important; */
+      /* padding-right: 0px !important; */
+      background: #ffffff !important;
+      box-shadow: none !important;
+    }
+  }
+
+  @media (max-width: 860px) {
+    .resume {
+      width: 100%;
+      min-height: auto;
+      padding: 10px 18px;
+    }
+
+    .main-header {
+      margin: 10px 14px 16px;
+      padding: 24px 18px;
+      min-height: 240px;
+      max-height: 240px;
+    }
+  }
+</style>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var header = document.querySelector('.main-header');
+    if (!header) return;
+
+    var title = header.querySelector('h1');
+    if (!title) return;
+
+    function fitHeaderTitle() {
+      var max = 55;
+      var min = 26;
+      var size = max;
+      title.style.fontSize = size + 'px';
+
+      while (header.scrollHeight > header.clientHeight && size > min) {
+        size -= 0.5;
+        title.style.fontSize = size + 'px';
+      }
+    }
+
+    fitHeaderTitle();
+    window.addEventListener('resize', fitHeaderTitle);
+  });
+</script>
 </head>
 <body>
 
-    <table class="layout-table">
-        <tr>
-            <td class="sidebar">
-                
-                <div class="name-header"><h1>{{ name }}</h1></div>
-                <p class="profession-title">{{ profession }}</p>
+<div class="resume">
 
-                <h2 class="side-section-title">CONTACT</h2>
-                <div class="contact-info">
-                    <p>{{ phone }}</p>
-                    <p>{{ email }}</p>
-                    <p>{{ address }}</p>
-                </div>
+  <aside class="sidebar">
+    <div class="sidebar-photo-zone">
+      <div class="photo-placeholder">
+        {% if profile_image_url %}
+        <img src="{{ profile_image_url }}" alt="Profile picture"/>
+        {% else %}
+        <div class="photo-fallback"><span>{{ name[:2] | upper }}</span></div>
+        {% endif %}
+      </div>
+    </div>
 
-                <h2 class="side-section-title">SKILLS</h2>
-                {% for skill in skills %}
-                <div class="list-item">
-                    <span class="item-label">{{ skill.name }}</span>
-                    <span class="item-meta">Level: {{ skill.level }}/5</span>
-                </div>
-                {% endfor %}
+    <div class="sidebar-body">
+      <!-- <div class="s-block">
+        <div class="s-section-title">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 12c2.7 0 4.8-2.1 4.8-4.8S14.7 2.4 12 2.4 7.2 4.5 7.2 7.2 9.3 12 12 12zm0 2.4c-3.2 0-9.6 1.6-9.6 4.8v2.4h19.2v-2.4c0-3.2-6.4-4.8-9.6-4.8z"/>
+            </svg>
+          </span>
+          About Me
+        </div>
+        <p class="about-text">{{ about_me }}</p>
+      </div> -->
 
-                <h2 class="side-section-title">LANGUAGES</h2>
-                {% for lang in languages %}
-                <div class="list-item">
-                    <span class="item-label">{{ lang.name }}</span>
-                    <span class="item-meta">{{ lang.percent }}%</span>
-                </div>
-                {% endfor %}
-            </td>
+      <div class="s-block">
+        <div class="s-section-title">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 4H4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 14H4V6h16v12zM8 12c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm4 2H4v1c0 .6 1.8 1 4 1s4-.4 4-1v-1zm6-3h-4v1h4v-1zm0-2h-4v1h4v-1z"/>
+            </svg>
+          </span>
+          Contact
+        </div>
+        <ul class="contact-list">
+          <li>{{ phone }}</li>
+          <li>{{ email }}</li>
+          <li>{{ address }}</li>
+        </ul>
+      </div>
 
-            <td class="main-content">
-                <h2 class="main-section-title">Professional Summary</h2>
-                <div class="divider"></div>
-                <p class="about-text">{{ about_me }}</p>
+      <div class="s-block">
+        <div class="s-section-title">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+            </svg>
+          </span>
+          Skills
+        </div>
+        <ul class="skill-list">
+          {% for skill in skills %}
+          <li>{{ skill.name }}</li>
+          {% else %}
+          <li>No skills listed</li>
+          {% endfor %}
+        </ul>
+      </div>
 
-                <h2 class="main-section-title">Experience</h2>
-                <div class="divider"></div>
-                
-                {% for job in experience %}
-                <div class="entry-container">
-                    <table class="entry-header-table">
-                        <tr>
-                            <td class="entry-title">{{ job.title }}</td>
-                            <td class="entry-date">{{ job.date }}</td>
-                        </tr>
-                    </table>
-                    <p class="entry-subtitle">{{ job.company }}</p>
-                    <p class="entry-desc">{{ job.description }}</p>
-                </div>
-                {% endfor %}
+      <!-- <div class="s-block">
+        <div class="s-section-title">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12.87 15.07l-2.54-2.51.03-.03A17.52 17.52 0 0014.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11.76-2.04zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2l-4.5-12zm-2.62 7l1.62-4.33L19.12 17h-3.24z"/>
+            </svg>
+          </span>
+          Language
+        </div>
+        <ul class="lang-list">
+          {% for lang in languages %}
+          <li>{{ lang.name }} <span class="meta">{{ lang.percent }}%</span></li>
+          {% else %}
+          <li>No languages listed</li>
+          {% endfor %}
+        </ul>
+      </div> -->
 
-                <h2 class="main-section-title">Education</h2>
-                <div class="divider"></div>
-                
-                {% for edu in education %}
-                <div class="entry-container">
-                    <table class="entry-header-table">
-                        <tr>
-                            <td class="entry-title">{{ edu.degree }}</td>
-                            <td class="entry-date">{{ edu.date }}</td>
-                        </tr>
-                    </table>
-                    <p class="entry-subtitle">{{ edu.institution }}</p>
-                    <p class="entry-desc">{{ edu.description }}</p>
-                </div>
-                {% endfor %}
-            </td>
-        </tr>
-    </table>
+      {% if certificates %}
+      <div class="s-block">
+        <div class="s-section-title">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2l3 7h7l-5.5 4.2 2.1 7L12 16.9 5.4 20.2l2.1-7L2 9h7z"/>
+            </svg>
+          </span>
+          Certificates
+        </div>
+        <ul class="certificate-list">
+          {% for certificate in certificates %}
+          <li>{{ certificate }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <div class="s-block">
+        <div class="s-section-title">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 3a7 7 0 110 14 7 7 0 010-14zm0 2.5a4.5 4.5 0 100 9 4.5 4.5 0 000-9z"/>
+            </svg>
+          </span>
+          Personality
+        </div>
+        <div class="personality-score">
+          <span class="label-inline">Score:</span>
+          {{ personality_score if personality_score is not none else 'N/A' }}/10
+        </div>
+      </div>
+      
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="main-header">
+      <h1>{{ name }}</h1>
+      <p class="role">{{ profession }}</p>
+    </div>
+
+    <div class="main-body">
+      <div class="m-block">
+        <div class="m-section-title">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/>
+            </svg>
+          </span>
+          Professional Summary
+        </div>
+        <p class="about-text">{{ about_me }}</p>
+      </div>
+
+      <div class="m-block">
+        <div class="m-section-title">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M20 6h-2.18c.07-.23.18-.45.18-.7C18 3.48 16.52 2 14.7 2h-5.4C7.48 2 6 3.48 6 5.3c0 .25.11.47.18.7H4C2.9 6 2 6.9 2 8v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zM9.3 4h5.4c.72 0 1.3.58 1.3 1.3 0 .72-.58 1.2-1.3 1.2H9.3C8.58 6.5 8 5.92 8 5.2 8 4.48 8.58 4 9.3 4zM20 19H4V8h16v11z"/>
+            </svg>
+          </span>
+          Experience
+        </div>
+
+        <div class="timeline">
+          {% for job in experience %}
+          <div class="timeline-entry">
+            <div class="timeline-line">
+              <div class="dot"></div>
+              <div class="vert"></div>
+            </div>
+            <div class="timeline-content">
+              <div class="year">{{ job.date }}</div>
+              <div class="institution">{{ job.title }}</div>
+              <div class="degree">{{ job.company }}</div>
+              <ul class="exp-bullets">
+                <li>{{ job.description }}</li>
+              </ul>
+            </div>
+          </div>
+          {% else %}
+          <div class="timeline-entry">
+            <div class="timeline-content">
+              <div class="degree">No experience entries added.</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="m-block">
+        <div class="m-section-title">
+          <span class="icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82zM12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/>
+            </svg>
+          </span>
+          Education
+        </div>
+
+        <div class="timeline">
+          {% for edu in education %}
+          <div class="timeline-entry">
+            <div class="timeline-line">
+              <div class="dot"></div>
+              <div class="vert"></div>
+            </div>
+            <div class="timeline-content">
+              <div class="year">{{ edu.date }}</div>
+              <div class="institution">{{ edu.degree }}</div>
+              <div class="degree">{{ edu.institution }}</div>
+              <div class="gpa">{{ edu.description }}</div>
+            </div>
+          </div>
+          {% else %}
+          <div class="timeline-entry">
+            <div class="timeline-content">
+              <div class="degree">No education entries added.</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
 
 </body>
 </html>
