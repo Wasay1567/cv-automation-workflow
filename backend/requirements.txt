@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+pydantic
+jinja2
+playwright
+python-dotenv
+boto3
+botocore
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib

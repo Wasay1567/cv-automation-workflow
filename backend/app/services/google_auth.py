@@ -1,47 +1,106 @@
 import os
-from pathlib import Path
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
+import logging
+from functools import lru_cache
+
+from google.oauth2 import service_account
 from googleapiclient.discovery import build
+import app.core.config as config
 
-# This calculates the path to the 'backend' folder
-# __file__ is backend/app/services/google_auth.py
-# .parent.parent.parent goes up 3 levels to 'backend/'
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-CLIENT_SECRETS_PATH = BASE_DIR / "client_secrets.json"
-TOKEN_PATH = BASE_DIR / "token.json"
+logger = logging.getLogger(__name__)
 
-SCOPES = [
-    "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/presentations"
-]
+SCOPES = ["https://www.googleapis.com/auth/drive"]
+
 
 def get_credentials():
-    creds = None
+    """
+    Load service account credentials from the file path specified in 
+    the GOOGLE_APPLICATION_CREDENTIALS environment variable.
     
-    # 1. Check if we already logged in previously
-    if TOKEN_PATH.exists():
-        creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
-    
-    # 2. If no valid token, we need to log in
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            # This looks for the file you downloaded from GCP
-            flow = InstalledAppFlow.from_client_secrets_file(
-                str(CLIENT_SECRETS_PATH), SCOPES
-            )
-            # This will trigger the browser popup
-            creds = flow.run_local_server(port=0)
+    Returns:
+        google.oauth2.service_account.Credentials: Service account credentials
         
-        # 3. Save the token for next time
-        with open(TOKEN_PATH, "w") as token:
-            token.write(creds.to_json())
-            
-    return creds
+    Raises:
+        ValueError: If GOOGLE_APPLICATION_CREDENTIALS is not set
+        FileNotFoundError: If the credentials file doesn't exist
+    """
+    creds_path = config.GOOGLE_APPLICATION_CREDENTIALS
+    
+    if not creds_path:
+        raise ValueError(
+            "GOOGLE_APPLICATION_CREDENTIALS environment variable is not set. "
+            "Please set it to the path of your service account JSON key file."
+        )
+    
+    if not os.path.exists(creds_path):
+        raise FileNotFoundError(
+            f"Service account credentials file not found at: {creds_path}"
+        )
+    
+    logger.info("Loading service account credentials from: %s", creds_path)
+    
+    credentials = service_account.Credentials.from_service_account_file(
+        creds_path,
+        scopes=SCOPES
+    )
+    
+    return credentials
 
-# Initialize the services using YOUR personal account
-credentials = get_credentials()
-drive_service = build("drive", "v3", credentials=credentials)
+
+def validate_folder_access(service, folder_id: str) -> bool:
+    """
+    Validate that the service account has access to the specified folder.
+    
+    Args:
+        service: Google Drive service instance
+        folder_id: The folder ID to validate
+        
+    Returns:
+        bool: True if accessible, False otherwise
+    """
+    if not folder_id:
+        logger.error("GOOGLE_DRIVE_FOLDER_ID is not set")
+        return False
+    
+    try:
+        folder = service.files().get(fileId=folder_id, fields="id,name,capabilities").execute()
+        can_add_children = folder.get('capabilities', {}).get('canAddChildren', False)
+        
+        if can_add_children:
+            logger.info(
+                "✓ Service account has access to folder: %s (ID: %s)",
+                folder.get('name'),
+                folder_id
+            )
+            return True
+        else:
+            logger.error(
+                "✗ Service account cannot add files to folder: %s (ID: %s). "
+                "Ensure the folder is shared with the service account as Editor.",
+                folder.get('name'),
+                folder_id
+            )
+            return False
+            
+    except Exception as e:
+        logger.error(
+            "✗ Cannot access folder (ID: %s). Error: %s\n"
+            "SOLUTION: Share this Google Drive folder with your service account email as Editor.\n"
+            "Service account email: Check your JSON key file for 'client_email' field.",
+            folder_id,
+            str(e)
+        )
+        return False
+
+
+@lru_cache(maxsize=1)
+def get_drive_service():
+    """Build and cache Google Drive client only when explicitly requested."""
+    credentials = get_credentials()
+    service = build("drive", "v3", credentials=credentials)
+    logger.info("Google Drive service initialized successfully")
+
+    # Validate folder access only when folder id is provided.
+    if config.PARENT_FOLDER_ID:
+        validate_folder_access(service, config.PARENT_FOLDER_ID)
+
+    return service

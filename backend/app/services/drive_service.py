@@ -1,8 +1,9 @@
-from app.services.google_auth import drive_service
+from app.services.google_auth import get_drive_service
 from app.core.config import PARENT_FOLDER_ID
 
 
 def copy_template(template_id: str, name: str):
+    drive_service = get_drive_service()
 
     body = {
         "name": f"{name}_2025_CV",

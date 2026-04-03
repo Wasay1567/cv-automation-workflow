@@ -1,27 +1,32 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
+
 class Skill(BaseModel):
     name: str
-    level: int
 
-class Language(BaseModel):
-    name: str
-    percent: int
 
 class Experience(BaseModel):
     company: str
-    date: str
+    to_date: Optional[str] = None
+    from_date: Optional[str] = None
+    date: Optional[str] = None
     title: str
-    description: str
+    description: str | List[str]
+
 
 class Education(BaseModel):
     institution: str
-    date: str
-    degree: str
-    description: str
+    to_date: Optional[str] = None
+    from_date: Optional[str] = None
+    date: Optional[str] = None
+    degree: str 
+    majors: Optional[str] = None
+    description: Optional[str] = None
+
 
 class CVRequest(BaseModel):
+    student_id: str
     name: str
     profession: str
     phone: str
@@ -30,6 +35,8 @@ class CVRequest(BaseModel):
     about_me: str
     profile_image_url: Optional[str] = None
     skills: List[Skill]
-    languages: List[Language]
+    languages: Optional[List[dict]] = None
+    certificates: Optional[List[str]] = None
+    personality_score: Optional[int] = None
     experience: List[Experience]
     education: List[Education]
