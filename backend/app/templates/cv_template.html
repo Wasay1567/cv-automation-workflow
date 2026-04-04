@@ -637,7 +637,9 @@
               <div class="institution">{{ job.title }}</div>
               <div class="degree">{{ job.company }}</div>
               <ul class="exp-bullets">
-                <li>{{ job.description }}</li>
+                {% for point in job.description %}
+                <li>{{ point }}</li>
+                {% endfor %}
               </ul>
             </div>
           </div>

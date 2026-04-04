@@ -3,8 +3,12 @@ from __future__ import annotations
 import logging
 import uuid
 import traceback
+import importlib
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Iterable
 
+from botocore.exceptions import ClientError
 from app.services.storage_service import get_storage_provider
 from app.services.generate_sample_pdf import BASE_DIR, render_pdf_from_data
 
@@ -24,6 +28,22 @@ class PDFUploadError(Exception):
 class PDFDownloadError(Exception):
     """Raised when PDF download fails."""
     pass
+
+
+class BulkDownloadError(Exception):
+    """Raised when bulk ZIP download fails."""
+    pass
+
+
+def _get_stream_zip_symbols():
+    """Resolve stream-zip symbols lazily to avoid import-time failures."""
+    try:
+        module = importlib.import_module("stream_zip")
+        return module.stream_zip, module.ZIP_32
+    except ModuleNotFoundError as exc:
+        raise BulkDownloadError(
+            "ZIP streaming dependency missing. Install with: pip install stream-zip"
+        ) from exc
 
 
 def _build_temp_pdf_path(student_id: str) -> Path:
@@ -65,7 +85,8 @@ def generate_and_upload_cv(data: dict, provider: str | None = None) -> dict:
             logger.info("[PDF_SERVICE] PDF rendered successfully: %s (size: %d bytes)", output_path, output_path.stat().st_size)
         except Exception as exc:
             logger.error("[PDF_SERVICE] PDF rendering failed: %s\n%s", exc, traceback.format_exc())
-            raise PDFGenerationError(f"Failed to render PDF from template: {exc}") from exc
+            reason = str(exc).strip() or type(exc).__name__
+            raise PDFGenerationError(f"Failed to render PDF from template: {reason}") from exc
 
         # 2. Read PDF bytes
         try:
@@ -156,3 +177,83 @@ def download_cv(object_id: str, provider: str | None = None):
     except Exception as exc:
         logger.error("[PDF_SERVICE] Unexpected error during download_cv: %s\n%s", exc, traceback.format_exc())
         raise PDFDownloadError(f"Unexpected error: {exc}") from exc
+
+
+def stream_bulk_cv_zip(student_ids: Iterable[str], provider: str | None = None):
+    """Create a ZIP stream containing CV PDFs for the provided student IDs from S3."""
+    normalized_ids = [str(sid).strip() for sid in student_ids if str(sid).strip()]
+    if not normalized_ids:
+        logger.warning("[PDF_SERVICE] stream_bulk_cv_zip called with empty student_ids")
+        raise BulkDownloadError("student_ids must contain at least one non-empty value")
+
+    deduped_ids = list(dict.fromkeys(normalized_ids))
+    logger.info("[PDF_SERVICE] Starting bulk ZIP generation for %d student IDs", len(deduped_ids))
+
+    try:
+        storage = get_storage_provider(provider)
+    except Exception as exc:
+        logger.error("[PDF_SERVICE] Failed to initialize storage provider for bulk download: %s\n%s", exc, traceback.format_exc())
+        raise BulkDownloadError(f"Failed to initialize storage provider: {exc}") from exc
+
+    if getattr(storage, "provider_name", "") != "s3":
+        logger.warning("[PDF_SERVICE] Bulk ZIP download currently supports only S3. Received provider: %s", getattr(storage, "provider_name", "unknown"))
+        raise BulkDownloadError("Bulk ZIP download is currently supported only for S3 provider")
+
+    try:
+        s3_client = storage._client
+        bucket_name = storage.bucket_name
+    except AttributeError as exc:
+        logger.error("[PDF_SERVICE] Invalid S3 provider instance for bulk download: %s", exc)
+        raise BulkDownloadError("S3 provider is not initialized correctly") from exc
+
+    missing_keys: list[str] = []
+    key_by_student: dict[str, str] = {}
+
+    for student_id in deduped_ids:
+        key = storage._object_key(student_id)
+        key_by_student[student_id] = key
+        try:
+            s3_client.head_object(Bucket=bucket_name, Key=key)
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code", "Unknown")
+            if error_code in {"404", "NoSuchKey", "NotFound"}:
+                missing_keys.append(student_id)
+            else:
+                logger.error("[PDF_SERVICE] Failed validating S3 object for student %s (key: %s): %s\n%s", student_id, key, exc, traceback.format_exc())
+                raise BulkDownloadError(f"Failed to validate S3 object for student_id {student_id}: {exc}") from exc
+
+    if missing_keys:
+        logger.warning("[PDF_SERVICE] Bulk download aborted. Missing CVs for student_ids: %s", ", ".join(missing_keys))
+        raise BulkDownloadError(f"CV not found for student_ids: {', '.join(missing_keys)}")
+
+    def s3_chunks_for(student_id: str, key: str):
+        try:
+            response = s3_client.get_object(Bucket=bucket_name, Key=key)
+            body = response["Body"]
+            for chunk in body.iter_chunks(chunk_size=64 * 1024):
+                if chunk:
+                    yield chunk
+        except Exception as exc:
+            logger.error("[PDF_SERVICE] Failed to stream S3 object for student %s (key: %s): %s\n%s", student_id, key, exc, traceback.format_exc())
+            raise BulkDownloadError(f"Failed while reading CV for student_id {student_id}: {exc}") from exc
+
+    try:
+        stream_zip_fn, zip_32 = _get_stream_zip_symbols()
+        def zip_member_files_with_method():
+            modified_at = datetime.now(timezone.utc)
+            for student_id in deduped_ids:
+                key = key_by_student[student_id]
+                yield (
+                    f"{student_id}.pdf",
+                    modified_at,
+                    0o644,
+                    zip_32,
+                    s3_chunks_for(student_id, key),
+                )
+
+        zip_stream = stream_zip_fn(zip_member_files_with_method())
+        logger.info("[PDF_SERVICE] Bulk ZIP stream prepared successfully for %d students", len(deduped_ids))
+        return zip_stream, deduped_ids
+    except Exception as exc:
+        logger.error("[PDF_SERVICE] Failed to build ZIP stream: %s\n%s", exc, traceback.format_exc())
+        raise BulkDownloadError(f"Failed to build ZIP stream: {exc}") from exc

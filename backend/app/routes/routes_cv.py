@@ -1,13 +1,13 @@
 import logging
 import traceback
-from fastapi import APIRouter, HTTPException, Body, Query, Request
+from fastapi import APIRouter, Body, Query, Request
 from app.schemas.cv_schema import CVRequest
 from app.services.pdf_service import (
     generate_and_upload_cv,
-    download_cv,
     PDFGenerationError,
     PDFUploadError,
-    PDFDownloadError,
+    BulkDownloadError,
+    stream_bulk_cv_zip,
 )
 from app.services.storage_service import StorageProviderError, S3Error, GoogleDriveError
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -161,89 +161,92 @@ def generate_pdf_endpoint(
         )
 
 
-@router.post("/download")
-async def download_single_cv(
+@router.post("/download-zip")
+async def download_bulk_cv_zip(
     request: Request,
     payload: dict = Body(...),
     provider: str = Query(default="s3", description="Storage backend: s3 or google_drive"),
 ):
-    """Download CV PDF from storage provider."""
+    """Download a ZIP containing CV PDFs for multiple student IDs from S3."""
     request_id = request.headers.get("X-Request-ID", "unknown")
-    object_id = payload.get("object_id")
-    student_id = payload.get("student_id")
+    student_ids = payload.get("student_ids")
 
     try:
-        # Validate input
-        if not object_id and not student_id:
+        if not isinstance(student_ids, list):
             logger.warning(
-                "[ROUTE_DOWNLOAD] Missing both object_id and student_id | Request-ID: %s",
+                "[ROUTE_BULK_DOWNLOAD] Invalid payload type for student_ids | Request-ID: %s",
                 request_id,
             )
             return error_response(
-                code="MISSING_PARAMETER",
-                message="Either 'object_id' or 'student_id' is required in request body",
+                code="VALIDATION_ERROR",
+                message="'student_ids' is required and must be a list",
                 status_code=400,
                 request_id=request_id,
             )
 
-        resolved_object_id = object_id or f"cvs/{student_id}.pdf"
-        
+        normalized_ids = [str(x).strip() for x in student_ids if str(x).strip()]
+        if not normalized_ids:
+            logger.warning("[ROUTE_BULK_DOWNLOAD] Empty student_ids list | Request-ID: %s", request_id)
+            return error_response(
+                code="VALIDATION_ERROR",
+                message="'student_ids' must contain at least one non-empty value",
+                status_code=400,
+                request_id=request_id,
+            )
+
+        deduped_count = len(dict.fromkeys(normalized_ids))
         logger.info(
-            "[ROUTE_DOWNLOAD] Starting download for object_id: %s (student: %s) | Request-ID: %s | Provider: %s",
-            resolved_object_id,
-            student_id or "unknown",
+            "[ROUTE_BULK_DOWNLOAD] Starting ZIP download for %d student IDs | Request-ID: %s | Provider: %s",
+            deduped_count,
             request_id,
             provider,
         )
 
         try:
-            pdf_content = download_cv(resolved_object_id, provider=provider)
+            zip_chunks, included_ids = stream_bulk_cv_zip(normalized_ids, provider=provider)
             logger.info(
-                "[ROUTE_DOWNLOAD] CV downloaded successfully for object_id: %s | Size: %d bytes | Request-ID: %s",
-                resolved_object_id,
-                len(pdf_content.getvalue()),
+                "[ROUTE_BULK_DOWNLOAD] ZIP stream ready with %d files | Request-ID: %s",
+                len(included_ids),
                 request_id,
             )
-            
-            filename = f"{student_id or 'cv'}.pdf"
-            return StreamingResponse(
-                pdf_content,
-                media_type="application/pdf",
-                headers={"Content-Disposition": f"attachment; filename={filename}"},
-            )
-        except PDFDownloadError as exc:
+
+            headers = {
+                "Content-Disposition": 'attachment; filename="bulk_download.zip"',
+                "Content-Type": "application/zip",
+                "X-Request-ID": request_id,
+                "X-Total-Files": str(len(included_ids)),
+            }
+            return StreamingResponse(zip_chunks, media_type="application/zip", headers=headers)
+        except BulkDownloadError as exc:
             logger.error(
-                "[ROUTE_DOWNLOAD] PDF download failed for object %s: %s | Request-ID: %s\n%s",
-                resolved_object_id,
+                "[ROUTE_BULK_DOWNLOAD] Bulk download failed: %s | Request-ID: %s\n%s",
                 exc,
                 request_id,
                 traceback.format_exc(),
             )
+            status_code = 404 if "not found" in str(exc).lower() else 400
             return error_response(
-                code="PDF_DOWNLOAD_ERROR",
-                message=f"Failed to download PDF: {str(exc)}",
-                status_code=404,
+                code="BULK_DOWNLOAD_ERROR",
+                message=str(exc),
+                status_code=status_code,
                 request_id=request_id,
             )
         except (S3Error, GoogleDriveError, StorageProviderError) as exc:
             logger.error(
-                "[ROUTE_DOWNLOAD] Storage provider error for object %s: %s | Request-ID: %s\n%s",
-                resolved_object_id,
+                "[ROUTE_BULK_DOWNLOAD] Storage provider error: %s | Request-ID: %s\n%s",
                 exc,
                 request_id,
                 traceback.format_exc(),
             )
-            status_code = 404 if "not found" in str(exc).lower() else 503
             return error_response(
                 code="STORAGE_ERROR",
                 message=f"Storage provider error: {str(exc)}",
-                status_code=status_code,
+                status_code=503,
                 request_id=request_id,
             )
         except ValueError as exc:
             logger.warning(
-                "[ROUTE_DOWNLOAD] Invalid input for object %s: %s | Request-ID: %s",
-                resolved_object_id,
+                "[ROUTE_BULK_DOWNLOAD] Invalid input: %s | Request-ID: %s",
                 exc,
                 request_id,
             )
@@ -255,8 +258,7 @@ async def download_single_cv(
             )
         except Exception as exc:
             logger.error(
-                "[ROUTE_DOWNLOAD] Unexpected error downloading CV for object %s: %s | Request-ID: %s\n%s",
-                resolved_object_id,
+                "[ROUTE_BULK_DOWNLOAD] Unexpected error downloading ZIP: %s | Request-ID: %s\n%s",
                 exc,
                 request_id,
                 traceback.format_exc(),
@@ -269,7 +271,7 @@ async def download_single_cv(
             )
     except Exception as exc:
         logger.error(
-            "[ROUTE_DOWNLOAD] Critical error: %s | Request-ID: %s\n%s",
+            "[ROUTE_BULK_DOWNLOAD] Critical error: %s | Request-ID: %s\n%s",
             exc,
             request_id,
             traceback.format_exc(),

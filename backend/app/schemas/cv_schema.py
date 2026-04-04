@@ -12,7 +12,7 @@ class Experience(BaseModel):
     from_date: Optional[str] = None
     date: Optional[str] = None
     title: str
-    description: str | List[str]
+    description: List[str]
 
 
 class Education(BaseModel):

@@ -2,15 +2,27 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from urllib.parse import quote
 from typing import Any
+import asyncio
+import sys
 
 from jinja2 import Environment, FileSystemLoader
 from playwright.sync_api import sync_playwright
 
 
 BASE_DIR = Path(__file__).resolve().parent
-TEMPLATE_DIR = BASE_DIR / "app" / "templates"
+TEMPLATE_DIR = BASE_DIR.parent / "templates"
 TEMPLATE_NAME = "cv_template.html"
 OUTPUT_FILE = BASE_DIR / "sample_cv.pdf"
+
+
+def _ensure_windows_proactor_policy() -> None:
+    """Playwright needs subprocess support, which requires Proactor loop on Windows."""
+    if sys.platform != "win32":
+        return
+
+    policy = asyncio.get_event_loop_policy()
+    if policy.__class__.__name__ == "WindowsSelectorEventLoopPolicy":
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 
 SAMPLE_DATA = {
@@ -46,17 +58,19 @@ SAMPLE_DATA = {
             "date": "(2020 –2023)",
             "title": "Senior Graphic Designer",
             "company": "Fauget studio",
-            "description": (
-                "create more than 100 graphic designs for big companies. complete a lot of complicated work"
-            ),
+            "description": [
+                "create more than 100 graphic designs for big companies",
+                "complete a lot of complicated work",
+            ],
         },
         {
             "date": "(2017 – 2019)",
             "title": "Senior Graphic Designer",
             "company": "Iarana, inc",
-            "description": (
-                "create more than 100 graphic designs for big companies. complete a lot of complicated work"
-            ),
+            "description": [
+                "create more than 100 graphic designs for big companies",
+                "complete a lot of complicated work",
+            ],
         },
     ],
     "education": [
@@ -78,11 +92,12 @@ def _build_template_payload(data: dict[str, Any]) -> dict[str, Any]:
         to_date = (item.get("to_date") or "").strip()
         date = item.get("date") or f"({from_date} - {to_date})".strip()
 
-        raw_description = item.get("description", "")
+        raw_description = item.get("description", [])
         if isinstance(raw_description, list):
-            description = "; ".join([str(x).strip() for x in raw_description if str(x).strip()])
+            description = [str(x).strip() for x in raw_description if str(x).strip()]
         else:
-            description = str(raw_description).strip()
+            text = str(raw_description).strip()
+            description = [text] if text else []
 
         experience.append(
             {
@@ -132,6 +147,7 @@ def _build_template_payload(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def render_pdf_from_data(data: dict[str, Any], output_file: Path) -> Path:
+    _ensure_windows_proactor_policy()
     env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)))
     template = env.get_template(TEMPLATE_NAME)
     html_content = template.render(_build_template_payload(data))
@@ -161,6 +177,7 @@ def render_pdf_from_data(data: dict[str, Any], output_file: Path) -> Path:
 
 
 def render_pdf() -> Path:
+    _ensure_windows_proactor_policy()
     env = Environment(loader=FileSystemLoader(str(TEMPLATE_DIR)))
     template = env.get_template(TEMPLATE_NAME)
     html_content = template.render(SAMPLE_DATA)
