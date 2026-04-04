@@ -15,22 +15,6 @@ COPY requirements.txt .
 # Install packages into a dedicated prefix so they can be copied cleanly
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# Install system dependencies for Chromium
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libnss3 \
-    libdbus-1-3 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Install Chromium browser binaries
-RUN python -m playwright install chromium
-
 # ──────────────────────────────────────────────
 # Stage 2: production image
 # ──────────────────────────────────────────────
@@ -43,6 +27,22 @@ WORKDIR /app
 
 # Copy installed packages from the builder stage
 COPY --from=builder /install /usr/local
+
+# Install system dependencies required by Playwright Chromium
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libnss3 \
+    libdbus-1-3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Chromium browser binaries after Python deps are available in /usr/local
+RUN python -m playwright install chromium
 
 # Copy application source
 COPY app/ ./app/
