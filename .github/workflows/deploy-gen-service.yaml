@@ -26,8 +26,15 @@ jobs:
           script: |
             cd /home/ubuntu/app-directory
             echo "${{ secrets.ENV_FILE }}" > .env  # Recreates the .env file on EC2
-            docker pull ${{ secrets.DOCKER_USERNAME }}/cv-gen-microservice:latest
             docker stop cv-gen-microservice || true
             docker rm cv-gen-microservice || true
+
+            # Free disk space before pulling the new image (Playwright layers are large)
+            docker image prune -af || true
+            docker container prune -f || true
+            docker builder prune -af || true
+
+            docker pull ${{ secrets.DOCKER_USERNAME }}/cv-gen-microservice:latest
+
             # Run container using the recreated .env file
             docker run -d --name cv-gen-microservice --env-file .env -p 8080:8080 ${{ secrets.DOCKER_USERNAME }}/cv-gen-microservice:latest
