@@ -134,5 +134,10 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 app.include_router(cv_router)
 
+@app.get("/health")
+async def health_check():
+    """Health check endpoint to verify service is running."""
+    return {"status": "ok", "message": "CV Generation MicroService is healthy"}
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000, log_config=LOG_CONFIG)
+    uvicorn.run(app, host="0.0.0.0", port=8080, log_config=LOG_CONFIG)
