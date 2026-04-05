@@ -7,7 +7,9 @@ from typing import Any
 from uuid import UUID
 
 import httpx
+from fastapi import HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import StreamingResponse
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -85,6 +87,58 @@ def _extract_json_object(raw_text: str) -> dict[str, Any] | None:
         return None
 
 
+def _format_month_year(value: date | datetime | None) -> str | None:
+    if value is None:
+        return None
+    return value.strftime("%b %Y")
+
+
+def _is_future_date(value: date | datetime | None) -> bool:
+    if value is None:
+        return False
+    candidate = value.date() if isinstance(value, datetime) else value
+    return candidate > date.today()
+
+
+def _format_date_range(from_date: date | datetime | None, to_date: date | datetime | None) -> str | None:
+    start_label = _format_month_year(from_date)
+    end_label = "Present" if _is_future_date(to_date) or to_date is None else _format_month_year(to_date)
+
+    if start_label and end_label:
+        return f"({start_label} - {end_label})"
+    if start_label:
+        return f"({start_label})"
+    if end_label:
+        return f"({end_label})"
+    return None
+
+
+def _normalize_degree_label(academic: Academic) -> str:
+    label = (academic.majors or academic.degree or "").strip()
+    if label.lower().startswith("department of"):
+        label = re.sub(r"^Department of\s*", "Bachelors of ", label, flags=re.IGNORECASE).strip()
+    return label
+
+
+def _build_personality_score(cv: CVSubmission) -> int:
+    score = 5
+    if cv.personal_info:
+        score += 1
+    if cv.academics:
+        score += 1
+    if cv.internships:
+        score += 1
+    if cv.skills:
+        score += 1
+    if cv.achievements or cv.certificates:
+        score += 1
+    if cv.extra_curricular or cv.references:
+        score += 1
+    if cv.career_counseling:
+        score += 1
+    return min(score, 10)
+
+
 def _get_ai_summary_and_title(cv_data: dict[str, Any]) -> dict[str, str]:
     prompt = (
         "You are a professional resume writer.\n\n"
@@ -114,56 +168,53 @@ def _get_ai_summary_and_title(cv_data: dict[str, Any]) -> dict[str, str]:
     return {"summary": summary.strip(), "title": title.strip()}
 
 
-def _build_pdf_payload(cv_data: dict[str, Any], ai_result: dict[str, str]) -> dict[str, Any]:
-    personal_info = cv_data.get("personal_info") or {}
-    internships = cv_data.get("internships") or []
-    academics = cv_data.get("academics") or []
-    certificates = cv_data.get("certificates") or []
-    skills = cv_data.get("skills") or []
+def _build_pdf_payload(cv: CVSubmission, ai_result: dict[str, str]) -> dict[str, Any]:
+    personal_info = cv.personal_info
+    student_email = cv.student.email if cv.student else (personal_info.email if personal_info else None)
+    inferred_name = (
+        student_email.split("@")[0]
+        if isinstance(student_email, str) and "@" in student_email
+        else "Student"
+    )
 
-    student_email = cv_data.get("student_email") or personal_info.get("email")
-    inferred_name = (student_email.split("@")[0] if isinstance(student_email, str) and "@" in student_email else "Student")
+    profession = ai_result.get("title") or ""
+    if not profession:
+        profession = _normalize_degree_label(cv.academics[0]) if cv.academics else "Student"
 
-    payload: dict[str, Any] = {
-        "name": personal_info.get("name") or inferred_name,
-        "profession": ai_result.get("title") or "Student",
-        "phone": personal_info.get("cell") or "",
-        "email": personal_info.get("email") or student_email or "",
-        "address": personal_info.get("address") or "",
+    return {
+        "student_id": str(cv.cv_id),
+        "name": personal_info.name if personal_info and personal_info.name else inferred_name,
+        "profession": profession,
+        "phone": personal_info.cell if personal_info and personal_info.cell else "",
+        "email": personal_info.email if personal_info and personal_info.email else (student_email or ""),
+        "address": personal_info.address if personal_info and personal_info.address else "",
         "about_me": ai_result.get("summary") or "",
-        "profile_image_url": cv_data.get("student_image") or "",
-        "skills": [item.get("name") for item in skills if isinstance(item, dict) and item.get("name")],
+        "profile_image_url": cv.student_image_url or "",
+        "personality_score": _build_personality_score(cv),
+        "skills": [{"name": skill.name} for skill in cv.skills if skill.name],
         "experience": [
             {
-                "company": internship.get("organization"),
-                "from_date": internship.get("from_date"),
-                "to_date": internship.get("to_date"),
-                "title": internship.get("position") or internship.get("field") or "",
-                "description": "; ".join((internship.get("duties") or [])),
+                "date": _format_date_range(internship.from_date, internship.to_date),
+                "title": internship.position or internship.field or "",
+                "company": internship.organization or "",
+                "description": [
+                    duty
+                    for duty in (internship.duties or [])
+                    if isinstance(duty, str) and duty.strip()
+                ],
             }
-            for internship in internships
-            if isinstance(internship, dict)
+            for internship in cv.internships
         ],
         "education": [
             {
-                "institution": academic.get("university"),
-                "from_date": academic.get("from_date"),
-                "to_date": academic.get("to_date"),
-                "degree": academic.get("degree"),
-                "majors": academic.get("majors"),
+                "date": _format_date_range(academic.from_date, academic.to_date),
+                "degree": _normalize_degree_label(academic),
+                "institution": academic.university or "NED UNIVERSITY OF ENGINEERING AND TECHNOLOGY, KARACHI",
+                "description": "",
             }
-            for academic in academics
-            if isinstance(academic, dict)
+            for academic in cv.academics
         ],
     }
-
-    certificate_names = [
-        item.get("name") for item in certificates if isinstance(item, dict) and item.get("name")
-    ]
-    if certificate_names:
-        payload["certificates"] = certificate_names
-
-    return payload
 
 
 async def _generate_cv_pdf_and_store_file_id(cv_id: UUID) -> None:
@@ -193,10 +244,10 @@ async def _generate_cv_pdf_and_store_file_id(cv_id: UUID) -> None:
 
             serialized = _serialize_cv(cv)
             ai_result = await run_in_threadpool(_get_ai_summary_and_title, serialized)
-            pdf_payload = _build_pdf_payload(serialized, ai_result)
+            pdf_payload = _build_pdf_payload(cv, ai_result)
 
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post("http://localhost:5000/generate-pdf", json=pdf_payload)
+                response = await client.post("http://localhost:8080/generate-pdf", json=pdf_payload)
                 response.raise_for_status()
                 response_data = response.json() if response.content else {}
 
@@ -220,6 +271,47 @@ async def _generate_cv_pdf_and_store_file_id(cv_id: UUID) -> None:
         logger.exception("PDF generation HTTP call failed for cv_id=%s", cv_id)
     except Exception:
         logger.exception("Unexpected error while generating/storing CV PDF for cv_id=%s", cv_id)
+
+
+async def download_cv_zip(
+    cv_ids: list[str],
+    current_user: User,
+    db: AsyncSession,
+    request: Request,
+) -> StreamingResponse:
+    if not cv_ids:
+        raise HTTPException(status_code=400, detail="At least one CV id must be provided")
+
+    accessible_cv_ids: list[str] = []
+    for cv_id in cv_ids:
+        cv = await get_cv(cv_id, current_user, db)
+        if cv is None:
+            raise HTTPException(status_code=404, detail=f"CV with id '{cv_id}' not found")
+        accessible_cv_ids.append(str(cv.cv_id))
+
+    payload = {"student_ids": accessible_cv_ids}
+
+    request_id = request.headers.get("X-Request-ID", "unknown")
+
+    async def stream_download():
+        async with httpx.AsyncClient(timeout=None) as client:
+            async with client.stream(
+                "POST",
+                "http://localhost:8080/download-zip",
+                json=payload,
+                headers={"X-Request-ID": request_id},
+            ) as response:
+                response.raise_for_status()
+                async for chunk in response.aiter_bytes():
+                    yield chunk
+
+    response_headers = {
+        "Content-Disposition": 'attachment; filename="bulk_download.zip"',
+        "X-Request-ID": request_id,
+        "X-Total-Files": str(len(accessible_cv_ids)),
+    }
+
+    return StreamingResponse(stream_download(), media_type="application/zip", headers=response_headers)
 
 
 def _schedule_cv_generation(cv_id: UUID) -> None:

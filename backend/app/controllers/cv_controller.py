@@ -1,4 +1,4 @@
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import User, UserRole, UserStatus
@@ -36,6 +36,11 @@ async def handle_get_cv(cv_id: str, current_user: User, db: AsyncSession) -> dic
 async def handle_list_cvs(current_user: User, db: AsyncSession) -> list:
     _ensure_admin_or_advisor(current_user)
     return await cv_service.list_cvs(current_user, db)
+
+
+async def handle_download_cvs(cv_ids: list[str], current_user: User, db: AsyncSession, request: Request):
+    _ensure_admin_or_advisor(current_user)
+    return await cv_service.download_cv_zip(cv_ids, current_user, db, request)
 
 
 async def handle_get_student_cvs(current_user: User, db: AsyncSession) -> list:

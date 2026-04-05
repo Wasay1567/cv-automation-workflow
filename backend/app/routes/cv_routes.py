@@ -1,7 +1,7 @@
 from datetime import date, datetime
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -178,6 +178,15 @@ class CVRejectRequest(BaseModel):
     comments: Optional[str] = None
 
 
+class CVDownloadRequest(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    student_ids: list[str] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices("student_ids", "cv_ids"),
+    )
+
+
 @router.post("/", status_code=201)
 async def create_cv(
     payload: CVCreateRequest,
@@ -248,3 +257,13 @@ async def reject_cv(
     user: User = Depends(get_current_user),
 ):
     return await cv_controller.handle_reject_cv(cv_id, payload.comments, user, db)
+
+
+@router.post("/download-cv")
+async def download_cv(
+    request: Request,
+    payload: CVDownloadRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return await cv_controller.handle_download_cvs(payload.student_ids, user, db, request)
