@@ -47,6 +47,9 @@ RUN python -m playwright install chromium
 # Copy application source
 COPY app/ ./app/
 
+RUN mkdir -p /app/app/services/tmp && \
+    chown -R appuser:appgroup /app/app/services/tmp
+
 # Switch to non-root user
 USER appuser
 
