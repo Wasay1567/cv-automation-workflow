@@ -247,7 +247,7 @@ async def _generate_cv_pdf_and_store_file_id(cv_id: UUID) -> None:
             pdf_payload = _build_pdf_payload(cv, ai_result)
 
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post("http://localhost:8080/generate-pdf", json=pdf_payload)
+                response = await client.post("http://172.31.79.198:8080/generate-pdf", json=pdf_payload)
                 response.raise_for_status()
                 response_data = response.json() if response.content else {}
 
@@ -297,7 +297,7 @@ async def download_cv_zip(
         async with httpx.AsyncClient(timeout=None) as client:
             async with client.stream(
                 "POST",
-                "http://localhost:8080/download-zip",
+                "http://172.31.79.198:8080/download-zip",
                 json=payload,
                 headers={"X-Request-ID": request_id},
             ) as response:
