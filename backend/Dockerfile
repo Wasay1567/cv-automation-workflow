@@ -20,39 +20,38 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 # ──────────────────────────────────────────────
 FROM python:3.12-slim AS production
 
-# Create a non-root user for security
+# 1. Set a global environment variable for Playwright
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers
+
+# Create a non-root user
 RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
 
 WORKDIR /app
 
-# Copy installed packages from the builder stage
 COPY --from=builder /install /usr/local
 
-# Install system dependencies required by Playwright Chromium
+# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libnss3 \
-    libdbus-1-3 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
+    libnss3 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
+    libdrm2 libxkbcommon0 libpango-1.0-0 libpangocairo-1.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Chromium browser binaries after Python deps are available in /usr/local
-RUN python -m playwright install chromium
+# 2. Create the browser directory and install there
+RUN mkdir -p $PLAYWRIGHT_BROWSERS_PATH && \
+    python -m playwright install chromium && \
+    chmod -R 755 $PLAYWRIGHT_BROWSERS_PATH
 
 # Copy application source
 COPY app/ ./app/
 
+# 3. Fix permissions for the tmp folder and the browser folder
 RUN mkdir -p /app/app/services/tmp && \
-    chown -R appuser:appgroup /app/app/services/tmp
+    chown -R appuser:appgroup /app/app/services/tmp && \
+    chown -R appuser:appgroup $PLAYWRIGHT_BROWSERS_PATH
 
-# Switch to non-root user
 USER appuser
 
-EXPOSE 8000
+EXPOSE 8080
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
+
