@@ -32,12 +32,24 @@ COPY --from=builder /install /usr/local
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libnss3 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 libcups2 \
-    libdrm2 libxkbcommon0 libpango-1.0-0 libpangocairo-1.0-0 \
-    libxcomposite1 \
-    libxrandr2 \
-    libgbm1 \
+    libnss3 \
+    libdbus-1-3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libpango-1.0-0 \
+    libpangocairo-1.0-0 \
     libasound2 \
+    libgbm1 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxext6 \
+    libxfixes3 \
+    libxrandr2 \
+    libxrender1 \
+    libxtst6 \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Create the browser directory and install there
