@@ -25,7 +25,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             
-            echo "${{ secrets.ENV_FILE }}" > .env  # Recreates the .env file on EC2
+            echo "${{ secrets.GENERATE_ENV_FILE }}" > .env  # Recreates the .env file on EC2
             docker stop cv-gen-microservice || true
             docker rm cv-gen-microservice || true
 
