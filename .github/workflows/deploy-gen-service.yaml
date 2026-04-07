@@ -24,7 +24,7 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/ubuntu/app-directory
+            
             echo "${{ secrets.ENV_FILE }}" > .env  # Recreates the .env file on EC2
             docker stop cv-gen-microservice || true
             docker rm cv-gen-microservice || true
