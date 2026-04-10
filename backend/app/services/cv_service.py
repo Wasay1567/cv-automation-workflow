@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 import asyncio
 import json
 import logging
@@ -26,6 +26,7 @@ from app.models import (
     FYP,
     IndustrialVisit,
     Internship,
+    GloabalSettings,
     PersonalInfo,
     Reference,
     Skill,
@@ -34,6 +35,7 @@ from app.models import (
 )
 
 logger = logging.getLogger(__name__)
+FORM_DEADLINE_KEY = "form_deadline"
 
 
 def _log_task_exception(task: asyncio.Task[Any], task_name: str) -> None:
@@ -118,6 +120,34 @@ def _normalize_degree_label(academic: Academic) -> str:
     if label.lower().startswith("department of"):
         label = re.sub(r"^Department of\s*", "Bachelors of ", label, flags=re.IGNORECASE).strip()
     return label
+
+
+def _normalize_unix_timestamp(timestamp: int) -> int:
+    return timestamp // 1000 if timestamp > 9999999999 else timestamp
+
+
+async def _is_form_deadline_passed(db: AsyncSession) -> bool:
+    result = await db.execute(
+        select(GloabalSettings.setting_value).where(GloabalSettings.setting_key == FORM_DEADLINE_KEY)
+    )
+    deadline_value = result.scalar_one_or_none()
+
+    if deadline_value is None:
+        return False
+
+    try:
+        deadline_timestamp = _normalize_unix_timestamp(int(deadline_value))
+    except (TypeError, ValueError):
+        logger.warning("Invalid form deadline value stored in global_settings: %s", deadline_value)
+        return False
+
+    current_timestamp = int(datetime.now(timezone.utc).timestamp())
+    return current_timestamp > deadline_timestamp
+
+
+async def _ensure_form_deadline_not_passed(db: AsyncSession) -> None:
+    if await _is_form_deadline_passed(db):
+        raise HTTPException(status_code=403, detail="Form deadline has passed")
 
 
 def _build_personality_score(cv: CVSubmission) -> int:
@@ -508,6 +538,8 @@ def _cv_load_options() -> list:
 
 
 async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) -> dict[str, Any]:
+    await _ensure_form_deadline_not_passed(db)
+
     existing_cv_ids_result = await db.execute(
         select(CVSubmission.cv_id).where(CVSubmission.student_id == current_user.id)
     )
@@ -596,6 +628,8 @@ async def get_cv(cv_id: str, current_user: User, db: AsyncSession) -> CVSubmissi
 
 
 async def update_cv(cv_id: str, data: dict[str, Any], current_user: User, db: AsyncSession) -> dict[str, Any] | None:
+    await _ensure_form_deadline_not_passed(db)
+
     result = await db.execute(
         select(CVSubmission)
         .options(*_cv_load_options())
@@ -624,6 +658,8 @@ async def update_cv(cv_id: str, data: dict[str, Any], current_user: User, db: As
 
 
 async def delete_cv(cv_id: str, current_user: User, db: AsyncSession) -> bool:
+    await _ensure_form_deadline_not_passed(db)
+
     result = await db.execute(
         select(CVSubmission).where(CVSubmission.cv_id == cv_id, CVSubmission.student_id == current_user.id)
     )

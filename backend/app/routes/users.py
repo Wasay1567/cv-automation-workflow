@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.controllers.users import sync_user_preferences as sync_user_preferences_controller
+from app.controllers.users import get_form_deadline as get_form_deadline_controller
 from app.middlewares.admin import get_current_auth, get_current_user
 from app.database import get_db
 from app.models import User
@@ -45,5 +46,13 @@ async def sync_user_data(
         department=req.department,
         role=req.role,
     )
+
+
+@router.get("/settings/form-deadline")
+async def get_form_deadline(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return await get_form_deadline_controller(db)
 
 

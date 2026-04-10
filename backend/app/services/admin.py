@@ -5,7 +5,14 @@ from sqlalchemy import exists, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.email_service import EmailService
 from fastapi.concurrency import run_in_threadpool
-from app.models import CVStatus, CVSubmission, User, UserRole, UserStatus
+from app.models import CVStatus, CVSubmission, User, UserRole, UserStatus, GloabalSettings
+
+FORM_DEADLINE_KEY = "form_deadline"
+
+
+def _normalize_unix_timestamp(timestamp: int) -> int:
+    # Frontends commonly send milliseconds; normalize to seconds for datetime conversion.
+    return timestamp // 1000 if timestamp > 9999999999 else timestamp
 
 async def get_pending_advisors(db: AsyncSession):
     result = await db.execute(
@@ -115,4 +122,29 @@ async def notify_students_without_cv(subject: str, body: str, deadline: date, db
         "message": "Reminder email sent successfully",
         "notified_count": len(recipient_emails),
         "deadline": deadline.isoformat(),
+    }
+
+
+async def upsert_form_deadline(deadline_timestamp: int, db: AsyncSession):
+    normalized_timestamp = _normalize_unix_timestamp(deadline_timestamp)
+
+    result = await db.execute(
+        select(GloabalSettings).where(GloabalSettings.setting_key == FORM_DEADLINE_KEY)
+    )
+    setting = result.scalar_one_or_none()
+
+    if setting is None:
+        setting = GloabalSettings(
+            setting_key=FORM_DEADLINE_KEY,
+            setting_value=str(normalized_timestamp),
+        )
+        db.add(setting)
+    else:
+        setting.setting_value = str(normalized_timestamp)
+
+    await db.commit()
+
+    return {
+        "setting_key": FORM_DEADLINE_KEY,
+        "deadline": date.fromtimestamp(normalized_timestamp).isoformat(),
     }

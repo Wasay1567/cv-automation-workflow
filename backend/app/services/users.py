@@ -1,7 +1,15 @@
+from datetime import date
+
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import User, UserRole, UserStatus
+from app.models import GloabalSettings, User, UserRole, UserStatus
+
+FORM_DEADLINE_KEY = "form_deadline"
+
+
+def _normalize_unix_timestamp(timestamp: int) -> int:
+    return timestamp // 1000 if timestamp > 9999999999 else timestamp
 
 
 async def sync_user_preferences(
@@ -37,4 +45,20 @@ async def sync_user_preferences(
         "department": user.department,
         "role": user.role.value,
         "status": user.status.value,
+    }
+
+
+async def get_form_deadline(db: AsyncSession):
+    result = await db.execute(
+        select(GloabalSettings.setting_value).where(GloabalSettings.setting_key == FORM_DEADLINE_KEY)
+    )
+    deadline_timestamp = result.scalar_one_or_none()
+
+    if deadline_timestamp is None:
+        return {"deadline": None}
+
+    normalized_timestamp = _normalize_unix_timestamp(int(deadline_timestamp))
+
+    return {
+        "deadline": date.fromtimestamp(normalized_timestamp).isoformat()
     }

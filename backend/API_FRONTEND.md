@@ -42,6 +42,47 @@ Response `200`:
 }
 ```
 
+### `GET /api/settings/form-deadline`
+Auth: required
+
+Returns the form deadline as a date string. Any authenticated user can read it.
+
+Response `200`:
+```json
+{
+  "deadline": "2026-04-30"
+}
+```
+
+If the setting has not been created yet:
+```json
+{
+  "deadline": null
+}
+```
+
+### `PUT /api/admin/settings/form-deadline`
+Auth: admin only
+
+Creates or updates the `form_deadline` global setting.
+
+Request:
+```json
+{
+  "deadline_timestamp": 1777507200
+}
+```
+
+The timestamp may be in seconds or milliseconds.
+
+Response `200`:
+```json
+{
+  "setting_key": "form_deadline",
+  "deadline": "2026-04-30"
+}
+```
+
 ## CV API
 Base path: `/api/cv-submissions`
 

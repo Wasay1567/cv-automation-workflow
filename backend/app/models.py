@@ -43,6 +43,12 @@ class CVStatus(str, Enum):
     approved = "approved"
     rejected = "rejected"
 
+class GloabalSettings(Base):
+    __tablename__ =  "global_settings"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    setting_key = Column(String(50), unique=True, nullable=False)
+    setting_value = Column(String(255), nullable=False)
 
 # ============================
 # USERS

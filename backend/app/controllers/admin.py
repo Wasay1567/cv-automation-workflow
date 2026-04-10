@@ -6,6 +6,7 @@ from app.services.admin import (
 	approve_advisor as approve_advisor_service,
 	reject_advisor as reject_advisor_service,
 	notify_students_without_cv as notify_students_without_cv_service,
+	upsert_form_deadline as upsert_form_deadline_service,
 )
 
 
@@ -29,3 +30,7 @@ async def reject_advisor(advisor_id: str, db: AsyncSession):
 
 async def notify_students_without_cv(subject: str, body: str, deadline, db: AsyncSession):
 	return await notify_students_without_cv_service(subject, body, deadline, db)
+
+
+async def upsert_form_deadline(deadline_timestamp: int, db: AsyncSession):
+	return await upsert_form_deadline_service(deadline_timestamp, db)
