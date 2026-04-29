@@ -7,7 +7,8 @@ import sys
 
 from jinja2 import Environment, FileSystemLoader
 from playwright.sync_api import sync_playwright
-
+import requests
+import base64
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATE_DIR = BASE_DIR.parent / "templates"
@@ -83,6 +84,36 @@ SAMPLE_DATA = {
     ],
 }
 
+def get_profile_image_base64(drive_url: str) -> str:
+    """Converts a public Google Drive sharing URL into a Base64 string."""
+    try:
+        # Check if it's a standard Freepik or already processed URL
+        if "://google.com" not in drive_url:
+            return drive_url
+            
+        if "/d/" in drive_url:
+            file_id = drive_url.split("/d/")[1].split("/")[0]
+        else:
+            raise ValueError("Invalid Google Drive URL format")
+
+        direct_download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+        
+        response = requests.get(direct_download_url, timeout=10)
+        response.raise_for_status()
+
+        image_bytes = response.content
+        base64_encoded = base64.b64encode(image_bytes).decode("utf-8")
+        content_type = response.headers.get("Content-Type", "image/png")
+
+        return f"data:{content_type};base64,{base64_encoded}"
+
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        # Return fallback 1x1 transparent pixel
+        return "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+
+
+
 
 def _build_template_payload(data: dict[str, Any]) -> dict[str, Any]:
     """Normalize inbound CV payload to the template's expected shape."""
@@ -126,6 +157,9 @@ def _build_template_payload(data: dict[str, Any]) -> dict[str, Any]:
                 "description": str(description),
             }
         )
+
+    if data.get("profile_image_url"):
+        data["profile_image_url"] = get_profile_image_base64(data["profile_image_url"])
 
     payload = {
         "student_id": data.get("student_id", ""),
