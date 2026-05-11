@@ -58,6 +58,13 @@ Accepted examples:
 - `roll_no` or `rollNo`
 - internships date keys: `from_date`/`to_date` or `from`/`to`
 - industrial visit date keys: `visit_date` or `date`
+- `assessment` is an array of integers
+
+Image upload:
+- `POST` and `PUT` on `/api/cv-submissions` now accept `multipart/form-data`
+- Send the JSON body in a `payload` field and the image file in `student_image`
+- The backend stores the file in S3 as `profile-photo/{cv_id}.{ext}` and replaces the previous photo on update
+- JSON-only requests are still accepted for compatibility, but image URLs are no longer required from the frontend
 
 Date values accepted:
 - `YYYY-MM-DD`
@@ -73,7 +80,7 @@ Sections supporting string arrays or object arrays:
 ### Complete Create/Update Payload Example
 ```json
 {
-  "studentImage": "https://example.com/student.png",
+  "assessment": [4, 5, 3],
   "careerCounseling": false,
   "personalInfo": {
     "name": "Ali Khan",
@@ -191,6 +198,7 @@ Response:
   "student_image": "https://example.com/student.png",
   "rejection_comment": null,
   "career_counseling": false,
+  "assessment": [4, 5, 3],
   "created_at": "2026-03-09T10:35:00.000000",
   "updated_at": "2026-03-09T10:35:00.000000",
   "personal_info": {

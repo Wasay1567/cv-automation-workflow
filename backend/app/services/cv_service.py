@@ -2,10 +2,13 @@ from datetime import date, datetime
 import asyncio
 import json
 import logging
+import os
 import re
 from typing import Any
 from uuid import UUID
+from urllib.parse import quote, unquote, urlparse
 
+import boto3
 import httpx
 from fastapi import HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
@@ -34,6 +37,111 @@ from app.models import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+def _get_s3_bucket_name() -> str:
+    bucket_name = os.getenv("AWS_S3_BUCKET_NAME")
+    if not bucket_name:
+        raise HTTPException(status_code=500, detail="AWS_S3_BUCKET_NAME is not configured")
+    return bucket_name
+
+
+def _get_s3_region() -> str:
+    return os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "us-east-1"
+
+
+def _get_s3_client():
+    return boto3.client("s3", region_name=_get_s3_region())
+
+
+def _profile_photo_extension(filename: str | None, content_type: str | None) -> str:
+    if filename:
+        suffix = os.path.splitext(filename)[1].lower()
+        if suffix:
+            return suffix
+
+    content_type_map = {
+        "image/jpeg": ".jpg",
+        "image/jpg": ".jpg",
+        "image/png": ".png",
+        "image/webp": ".webp",
+        "image/gif": ".gif",
+        "image/heic": ".heic",
+        "image/heif": ".heif",
+    }
+    return content_type_map.get((content_type or "").lower(), "")
+
+
+def _build_profile_photo_key(cv_id: UUID, filename: str | None, content_type: str | None) -> str:
+    extension = _profile_photo_extension(filename, content_type)
+    if not extension:
+        raise HTTPException(status_code=400, detail="student_image must be a supported image type")
+    return f"profile-photo/{cv_id}{extension}"
+
+
+def _build_profile_photo_url(key: str) -> str:
+    bucket_name = _get_s3_bucket_name()
+    region_name = _get_s3_region()
+    return f"https://{bucket_name}.s3.{region_name}.amazonaws.com/{quote(key)}"
+
+
+def _extract_s3_key_from_url(url: str | None) -> str | None:
+    if not url:
+        return None
+
+    parsed = urlparse(url)
+    if not parsed.netloc or "amazonaws.com" not in parsed.netloc:
+        return None
+
+    key = parsed.path.lstrip("/")
+    return unquote(key) if key else None
+
+
+def _upload_profile_photo(image_bytes: bytes, key: str, content_type: str | None) -> str:
+    s3_client = _get_s3_client()
+    put_kwargs: dict[str, Any] = {
+        "Bucket": _get_s3_bucket_name(),
+        "Key": key,
+        "Body": image_bytes,
+    }
+    if content_type:
+        put_kwargs["ContentType"] = content_type
+    s3_client.put_object(**put_kwargs)
+    return _build_profile_photo_url(key)
+
+
+def _delete_s3_object(key: str) -> None:
+    s3_client = _get_s3_client()
+    s3_client.delete_object(Bucket=_get_s3_bucket_name(), Key=key)
+
+
+async def _store_student_image(cv: CVSubmission, image_file: Any | None) -> tuple[str | None, str | None]:
+    if image_file is None:
+        return None, None
+
+    image_bytes = await image_file.read()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="student_image file is empty")
+
+    key = _build_profile_photo_key(cv.cv_id, getattr(image_file, "filename", None), getattr(image_file, "content_type", None))
+    url = await run_in_threadpool(
+        _upload_profile_photo,
+        image_bytes,
+        key,
+        getattr(image_file, "content_type", None),
+    )
+    return url, key
+
+
+async def _delete_profile_photo_url(url: str | None) -> None:
+    key = _extract_s3_key_from_url(url)
+    if not key:
+        return
+
+    try:
+        await run_in_threadpool(_delete_s3_object, key)
+    except Exception:
+        logger.exception("Failed to delete profile photo key=%s", key)
 
 
 def _log_task_exception(task: asyncio.Task[Any], task_name: str) -> None:
@@ -333,6 +441,7 @@ def _serialize_cv(cv: CVSubmission) -> dict[str, Any]:
         "student_image": cv.student_image_url,
         "rejection_comment": cv.rejection_comment,
         "career_counseling": cv.career_counseling,
+        "assessment": cv.assessment or [],
         "created_at": _to_iso(cv.created_at),
         "updated_at": _to_iso(cv.updated_at),
         "personal_info": {
@@ -488,6 +597,7 @@ def _attach_cv_sections(cv: CVSubmission, data: dict[str, Any]) -> None:
     cv.extra_curricular = [
         ExtraCurricular(**item) for item in _normalize_named_items(data.get("extra_curricular", []), "activity")
     ]
+    cv.assessment = data.get("assessment", []) or []
     cv.references = [Reference(**item) for item in data.get("references", [])]
 
 
@@ -507,25 +617,38 @@ def _cv_load_options() -> list:
     ]
 
 
-async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) -> dict[str, Any]:
-    existing_cv_ids_result = await db.execute(
-        select(CVSubmission.cv_id).where(CVSubmission.student_id == current_user.id)
+async def create_cv(
+    data: dict[str, Any],
+    current_user: User,
+    db: AsyncSession,
+    student_image_file: Any | None = None,
+) -> dict[str, Any]:
+    existing_cv_rows_result = await db.execute(
+        select(CVSubmission.cv_id, CVSubmission.student_image_url).where(CVSubmission.student_id == current_user.id)
     )
-    existing_cv_ids = list(existing_cv_ids_result.scalars().all())
+    existing_cv_rows = existing_cv_rows_result.all()
 
     cv = CVSubmission(
         student_id=current_user.id,
         status=CVStatus.pending_advisor,
-        student_image_url=data.get("student_image"),
         career_counseling=data.get("career_counseling", False),
     )
     _attach_cv_sections(cv, data)
+
+    uploaded_image_key: str | None = None
+    if student_image_file is not None:
+        image_url, uploaded_image_key = await _store_student_image(cv, student_image_file)
+        cv.student_image_url = image_url
+    else:
+        cv.student_image_url = data.get("student_image")
 
     db.add(cv)
     try:
         await db.commit()
     except Exception:
         await db.rollback()
+        if uploaded_image_key:
+            await _delete_profile_photo_url(cv.student_image_url)
         logger.exception("Failed to create CV for student_id=%s", current_user.id)
         raise
 
@@ -536,11 +659,20 @@ async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) 
     )
     created_cv = result.scalar_one()
 
-    if existing_cv_ids:
-        await db.execute(
-            delete(CVSubmission).where(CVSubmission.cv_id.in_(existing_cv_ids))
-        )
-        await db.commit()
+    if existing_cv_rows:
+        try:
+            await db.execute(
+                delete(CVSubmission).where(
+                    CVSubmission.cv_id.in_([row[0] for row in existing_cv_rows])
+                )
+            )
+            await db.commit()
+
+            for _, old_image_url in existing_cv_rows:
+                await _delete_profile_photo_url(old_image_url)
+        except Exception:
+            await db.rollback()
+            logger.exception("Failed to clean up previous CV submissions for student_id=%s", current_user.id)
 
     return _serialize_cv(created_cv)
 
@@ -595,7 +727,13 @@ async def get_cv(cv_id: str, current_user: User, db: AsyncSession) -> CVSubmissi
     return cv
 
 
-async def update_cv(cv_id: str, data: dict[str, Any], current_user: User, db: AsyncSession) -> dict[str, Any] | None:
+async def update_cv(
+    cv_id: str,
+    data: dict[str, Any],
+    current_user: User,
+    db: AsyncSession,
+    student_image_file: Any | None = None,
+) -> dict[str, Any] | None:
     result = await db.execute(
         select(CVSubmission)
         .options(*_cv_load_options())
@@ -605,19 +743,31 @@ async def update_cv(cv_id: str, data: dict[str, Any], current_user: User, db: As
     if cv is None:
         return None
 
+    old_image_url = cv.student_image_url
     cv.career_counseling = data.get("career_counseling", cv.career_counseling)
-    cv.student_image_url = data.get("student_image", cv.student_image_url)
     cv.status = CVStatus.pending_advisor
     cv.rejection_comment = None
     _attach_cv_sections(cv, data)
+
+    uploaded_image_key: str | None = None
+    uploaded_image_url: str | None = None
+    if student_image_file is not None:
+        uploaded_image_url, uploaded_image_key = await _store_student_image(cv, student_image_file)
+        cv.student_image_url = uploaded_image_url
 
     try:
         await db.commit()
     except Exception:
         await db.rollback()
+        if uploaded_image_key:
+            await _delete_profile_photo_url(cv.student_image_url)
         logger.exception("Failed to update CV cv_id=%s for student_id=%s", cv_id, current_user.id)
         raise
     await db.refresh(cv)
+
+    if uploaded_image_key:
+        if old_image_url and old_image_url != uploaded_image_url:
+            await _delete_profile_photo_url(old_image_url)
 
     refreshed = await get_cv(cv_id, current_user, db)
     return _serialize_cv(refreshed) if refreshed else None
@@ -631,8 +781,10 @@ async def delete_cv(cv_id: str, current_user: User, db: AsyncSession) -> bool:
     if cv is None:
         return False
 
+    image_url = cv.student_image_url
     await db.delete(cv)
     await db.commit()
+    await _delete_profile_photo_url(image_url)
     return True
 
 

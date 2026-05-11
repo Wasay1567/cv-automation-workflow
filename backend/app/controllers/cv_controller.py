@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import User, UserRole, UserStatus
@@ -18,9 +18,14 @@ def _ensure_admin_or_advisor(user: User) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Advisor account is not active")
 
 
-async def handle_create_cv(data: dict, current_user: User, db: AsyncSession) -> dict:
+async def handle_create_cv(
+    data: dict,
+    current_user: User,
+    db: AsyncSession,
+    student_image_file: UploadFile | None = None,
+) -> dict:
     _ensure_student(current_user)
-    return await cv_service.create_cv(data, current_user, db)
+    return await cv_service.create_cv(data, current_user, db, student_image_file)
 
 
 async def handle_get_cv(cv_id: str, current_user: User, db: AsyncSession) -> dict:
@@ -48,9 +53,15 @@ async def handle_get_student_cvs(current_user: User, db: AsyncSession) -> list:
     return await cv_service.get_student_cvs(current_user, db)
 
 
-async def handle_update_cv(cv_id: str, data: dict, current_user: User, db: AsyncSession) -> dict:
+async def handle_update_cv(
+    cv_id: str,
+    data: dict,
+    current_user: User,
+    db: AsyncSession,
+    student_image_file: UploadFile | None = None,
+) -> dict:
     _ensure_student(current_user)
-    updated = await cv_service.update_cv(cv_id, data, current_user, db)
+    updated = await cv_service.update_cv(cv_id, data, current_user, db, student_image_file)
     if updated is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -15,7 +15,7 @@ from sqlalchemy import (
     Index
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSON
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -118,6 +118,8 @@ class CVSubmission(Base):
     achievements = relationship("Achievement", back_populates="cv", cascade="all, delete")
     skills = relationship("Skill", back_populates="cv", cascade="all, delete")
     extra_curricular = relationship("ExtraCurricular", back_populates="cv", cascade="all, delete")
+    assessment = Column(JSON, default=[], nullable=True)
+
     references = relationship("Reference", back_populates="cv", cascade="all, delete")
 
 

@@ -1,7 +1,8 @@
+import json
 from datetime import date, datetime
-from typing import Optional
+from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, status
 from pydantic import AliasChoices, BaseModel, ConfigDict, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -171,6 +172,7 @@ class CVCreateRequest(BaseModel):
         default_factory=list,
         validation_alias=AliasChoices("extra_curricular", "extraCurricular"),
     )
+    assessment: list[int] = Field(default_factory=list)
     references: list[ReferencePayload] = Field(default_factory=list)
 
 
@@ -187,13 +189,50 @@ class CVDownloadRequest(BaseModel):
     )
 
 
+async def _parse_cv_request(request: Request) -> tuple[dict[str, Any], UploadFile | None]:
+    content_type = request.headers.get("content-type", "")
+
+    if content_type.startswith("multipart/form-data"):
+        form = await request.form()
+        image_file: UploadFile | None = None
+
+        for key in ("student_image", "studentImage", "student_image_file", "studentImageFile"):
+            candidate = form.get(key)
+            if hasattr(candidate, "filename") and hasattr(candidate, "read"):
+                image_file = candidate
+                break
+
+        payload_raw = form.get("payload") or form.get("data") or form.get("cv")
+        if isinstance(payload_raw, str) and payload_raw.strip():
+            try:
+                return json.loads(payload_raw), image_file
+            except json.JSONDecodeError as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid JSON payload: {exc.msg}",
+                ) from exc
+
+        payload: dict[str, Any] = {}
+        for key, value in form.multi_items():
+            if key in {"payload", "data", "cv", "student_image", "studentImage", "student_image_file", "studentImageFile"}:
+                continue
+            if isinstance(value, str):
+                payload[key] = value
+
+        return payload, image_file
+
+    return await request.json(), None
+
+
 @router.post("/", status_code=201)
 async def create_cv(
-    payload: CVCreateRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return await cv_controller.handle_create_cv(payload.model_dump(), user, db)
+    payload_data, image_file = await _parse_cv_request(request)
+    payload = CVCreateRequest.model_validate(payload_data)
+    return await cv_controller.handle_create_cv(payload.model_dump(), user, db, image_file)
 
 
 @router.get("/")
@@ -224,11 +263,13 @@ async def get_cv(
 @router.put("/{cv_id}")
 async def update_cv(
     cv_id: str,
-    payload: CVCreateRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return await cv_controller.handle_update_cv(cv_id, payload.model_dump(), user, db)
+    payload_data, image_file = await _parse_cv_request(request)
+    payload = CVCreateRequest.model_validate(payload_data)
+    return await cv_controller.handle_update_cv(cv_id, payload.model_dump(), user, db, image_file)
 
 
 @router.delete("/{cv_id}")
