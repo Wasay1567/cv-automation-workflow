@@ -7,8 +7,10 @@ SQL_ECHO = os.getenv("SQL_ECHO", "false").lower() == "true"
 
 Base = declarative_base()
 
-engine = None
-AsyncSessionLocal = None
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=True
+)
 
 
 def init_db():

@@ -1,7 +1,9 @@
 from datetime import date, datetime
 import asyncio
+import os
 from typing import Any
 
+from fastapi import HTTPException, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,7 +26,7 @@ from app.models import (
     User,
     UserRole,
 )
-
+from app.utils import upload_to_s3
 
 def _schedule_rejection_email(to_email: str, rejection_comment: str | None) -> None:
     student_name = to_email.split("@")[0] if to_email else "Student"
@@ -140,6 +142,7 @@ def _serialize_cv(cv: CVSubmission) -> dict[str, Any]:
             }
             for activity in cv.extra_curricular
         ],
+        "assessment": cv.assessment or [],
         "references": [
             {
                 "id": str(reference.id),
@@ -209,12 +212,23 @@ def _cv_load_options() -> list:
     ]
 
 
-async def create_cv(data: dict[str, Any], current_user: User, db: AsyncSession) -> dict[str, Any]:
+async def create_cv(data: dict[str, Any], image_file: UploadFile, current_user: User, db: AsyncSession) -> dict[str, Any]:
+    # 1. Generate a unique path for the image
+    file_extension = image_file.filename.split(".")[-1]
+    s3_key = f"students/{current_user.id}/profile.{file_extension}"
+    
+    # 2. Upload binary to S3
+    image_url = upload_to_s3(image_file.file, os.getenv("AWS_S3_BUCKET_NAME"), s3_key)
+    
+    if not image_url:
+        raise HTTPException(status_code=500, detail="S3 Upload Failed")
+    
     cv = CVSubmission(
         student_id=current_user.id,
         status=CVStatus.pending_advisor,
-        student_image_url=data.get("student_image"),
+        student_image_url=image_url, # Changed
         career_counseling=data.get("career_counseling", False),
+        assessment=data.get("assessment", []),
     )
     _attach_cv_sections(cv, data)
 

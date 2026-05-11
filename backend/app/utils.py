@@ -2,10 +2,26 @@ from clerk_backend_api import Clerk, AuthenticateRequestOptions
 from fastapi import HTTPException
 import os
 from dotenv import load_dotenv
+import boto3
+from botocore.exceptions import NoCredentialsError
 
 load_dotenv()
 
 clerk_sdk = Clerk(bearer_auth=os.getenv("CLERK_SECRET_KEY"))
+
+s3_client = boto3.client(
+    's3',
+    aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+    aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
+    region_name=os.getenv("AWS_REGION")
+)
+
+def upload_to_s3(file_obj, bucket, s3_path):
+    try:
+        s3_client.upload_fileobj(file_obj, bucket, s3_path)
+        return f"https://{bucket}.s3.amazonaws.com/{s3_path}"
+    except NoCredentialsError:
+        return None
 
 
 def _get_authorized_parties() -> list[str]:

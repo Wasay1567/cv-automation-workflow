@@ -12,9 +12,10 @@ from sqlalchemy import (
     Text,
     Date,
     Enum as SQLEnum,
-    Index
+    Index,
+    JSON
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSON, UUID
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -81,6 +82,14 @@ class CVSubmission(Base):
 
     cv_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
+    # ADD THIS:
+    fyp = relationship(
+        "FYP",
+        uselist=False,
+        back_populates="cv",
+        cascade="all, delete"
+    )
+
     student_id = Column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -117,8 +126,12 @@ class CVSubmission(Base):
     achievements = relationship("Achievement", back_populates="cv", cascade="all, delete")
     skills = relationship("Skill", back_populates="cv", cascade="all, delete")
     extra_curricular = relationship("ExtraCurricular", back_populates="cv", cascade="all, delete")
-    references = relationship("Reference", back_populates="cv", cascade="all, delete")
+    
+    #New Line
+    assessment = Column(JSON, default=[], nullable=True)
 
+    references = relationship("Reference", back_populates="cv", cascade="all, delete")
+    
 
 Index("idx_student_status", CVSubmission.student_id, CVSubmission.status)
 

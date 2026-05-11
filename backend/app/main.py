@@ -1,6 +1,10 @@
 from fastapi import FastAPI
 import uvicorn
 from fastapi.middleware.cors import CORSMiddleware
+
+# from app.routes.cv_routes import router as cv_router
+
+# Import routes once, using consistent naming
 from app.routes.cv_routes import router as cv_router
 from app.routes.users import router as users_router
 from app.routes.admin import router as admin_router
@@ -34,6 +38,7 @@ app.include_router(cv_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(webhook_router)
+app.include_router(cv_router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,7 +1,8 @@
 from datetime import date
+import json
 from typing import Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -80,7 +81,12 @@ class CVCreateRequest(BaseModel):
     achievements: list[AchievementPayload] = Field(default_factory=list)
     skills: list[SkillPayload] = Field(default_factory=list)
     extra_curricular: list[ExtraCurricularPayload] = Field(default_factory=list)
+
+    # --- NEW FIELD ---
+    assessment: list[int] = Field(default_factory=list)
+
     references: list[ReferencePayload] = Field(default_factory=list)
+
 
 
 class CVRejectRequest(BaseModel):
@@ -89,11 +95,26 @@ class CVRejectRequest(BaseModel):
 
 @router.post("/", status_code=201)
 async def create_cv(
-    payload: CVCreateRequest,
+    #payload: CVCreateRequest,
+    student_image: UploadFile = File(...),
+    data: str = Form(...),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    return await cv_controller.handle_create_cv(payload.model_dump(), user, db)
+    try:
+        # 1. Parse string to dict
+        payload_dict = json.loads(data)
+        
+        # 2. (Optional but Recommended) Validate with Pydantic
+        # This ensures the data matches your CVCreateRequest structure
+        validated_data = CVCreateRequest(**payload_dict)
+        
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON in data field")
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    
+    return await cv_controller.handle_create_cv(validated_data.model_dump(), student_image, user, db)
 
 
 @router.get("/")
