@@ -6,5 +6,6 @@ playwright
 python-dotenv
 boto3
 botocore
+requests
 stream-zip
 zipstream-ng
