@@ -9,7 +9,7 @@ from app.services.pdf_service import (
     BulkDownloadError,
     stream_bulk_cv_zip,
 )
-from app.services.storage_service import StorageProviderError, S3Error, GoogleDriveError
+from app.services.storage_service import StorageProviderError, S3Error
 from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import ValidationError
 
@@ -34,7 +34,6 @@ def error_response(code: str, message: str, status_code: int, request_id: str | 
 def generate_pdf_endpoint(
     request: Request,
     data: CVRequest,
-    provider: str = Query(default="s3", description="Storage backend: s3 or google_drive"),
 ):
     """Generate CV PDF from request data and upload to storage provider."""
     request_id = request.headers.get("X-Request-ID", "unknown")
@@ -46,14 +45,13 @@ def generate_pdf_endpoint(
             "[ROUTE_GENERATE] Starting CV generation for student %s | Request-ID: %s | Provider: %s",
             student_id,
             request_id,
-            provider,
         )
         
         cv_data = data.model_dump() if hasattr(data, 'model_dump') else data.dict()
         logger.debug("[ROUTE_GENERATE] CV data payload received with %d fields", len(cv_data))
         
         try:
-            result = generate_and_upload_cv(cv_data, provider=provider)
+            result = generate_and_upload_cv(cv_data)
             logger.info(
                 "[ROUTE_GENERATE] CV generated and uploaded successfully | Student: %s | Object-ID: %s | Request-ID: %s",
                 student_id,
@@ -93,7 +91,7 @@ def generate_pdf_endpoint(
                 status_code=500,
                 request_id=request_id,
             )
-        except (S3Error, GoogleDriveError, StorageProviderError) as exc:
+        except (S3Error, StorageProviderError) as exc:
             logger.error(
                 "[ROUTE_GENERATE] Storage provider error for student %s: %s | Request-ID: %s\n%s",
                 student_id,
@@ -165,7 +163,6 @@ def generate_pdf_endpoint(
 async def download_bulk_cv_zip(
     request: Request,
     payload: dict = Body(...),
-    provider: str = Query(default="s3", description="Storage backend: s3 or google_drive"),
 ):
     """Download a ZIP containing CV PDFs for multiple student IDs from S3."""
     request_id = request.headers.get("X-Request-ID", "unknown")
@@ -196,14 +193,13 @@ async def download_bulk_cv_zip(
 
         deduped_count = len(dict.fromkeys(normalized_ids))
         logger.info(
-            "[ROUTE_BULK_DOWNLOAD] Starting ZIP download for %d student IDs | Request-ID: %s | Provider: %s",
+            "[ROUTE_BULK_DOWNLOAD] Starting ZIP download for %d student IDs | Request-ID: %s",
             deduped_count,
             request_id,
-            provider,
         )
 
         try:
-            zip_chunks, included_ids = stream_bulk_cv_zip(normalized_ids, provider=provider)
+            zip_chunks, included_ids = stream_bulk_cv_zip(normalized_ids)
             logger.info(
                 "[ROUTE_BULK_DOWNLOAD] ZIP stream ready with %d files | Request-ID: %s",
                 len(included_ids),
@@ -231,7 +227,7 @@ async def download_bulk_cv_zip(
                 status_code=status_code,
                 request_id=request_id,
             )
-        except (S3Error, GoogleDriveError, StorageProviderError) as exc:
+        except (S3Error, StorageProviderError) as exc:
             logger.error(
                 "[ROUTE_BULK_DOWNLOAD] Storage provider error: %s | Request-ID: %s\n%s",
                 exc,

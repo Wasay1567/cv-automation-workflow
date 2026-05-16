@@ -1,6 +1,6 @@
 # CV Generation Backend
 
-FastAPI microservice for generating and storing CV PDFs. Supports PDF generation via Playwright browser rendering, with idempotent storage in AWS S3 or Google Drive.
+FastAPI microservice for generating and storing CV PDFs. Supports PDF generation via Playwright browser rendering, with idempotent storage in AWS S3.
 
 ## Setup
 
@@ -24,10 +24,6 @@ AWS_ACCESS_KEY_ID=your-access-key
 AWS_SECRET_ACCESS_KEY=your-secret-key
 AWS_REGION=us-east-1
 AWS_S3_PREFIX=cvs
-
-# Google Drive Configuration (optional)
-GOOGLE_DRIVE_FOLDER_ID=your-folder-id
-GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 ```
 
 ## Running
@@ -35,6 +31,16 @@ GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
 ```bash
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+## Local Smoke Test
+
+Run the full CV generation flow locally without auth by calling the service layer directly:
+
+```bash
+python local_cv_smoke_test.py --cv-id CV-LOCAL-001
+```
+
+The script expects a profile image in S3 under `profile-photo/CV-LOCAL-001/` and uploads the generated CV PDF to the configured S3 bucket using the normal `cvs/<student_id>.pdf` key.
 
 ## API Endpoints
 
@@ -69,8 +75,6 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 }
 ```
 
-Query param: `provider=s3` or `provider=google_drive` (defaults to env `DEFAULT_STORAGE_PROVIDER`)
-
 Response:
 ```json
 {
@@ -102,7 +106,7 @@ Returns PDF file stream for download.
 ## Features
 
 - **Idempotent Storage**: One PDF per student. New generation replaces old file automatically.
-- **Dual Storage Support**: S3 and Google Drive with pluggable interface.
+- **S3-only storage**: Simpler storage path with no alternate backend branches.
 - **Comprehensive Logging**: Structured logging with request IDs, timing, error tracebacks.
 - **Error Handling**: Custom exception types, detailed error messages, HTTP status codes.
 - **CORS Enabled**: Cross-origin support for frontend integration.
@@ -110,12 +114,7 @@ Returns PDF file stream for download.
 
 ## Storage Idempotency
 
-Student CV files are named by `student_id.pdf`. When a new generation request arrives:
-
-1. **S3**: Delete existing object with key `cvs/{student_id}.pdf`, then upload new
-2. **Google Drive**: Find and delete existing file by name, then upload new
-
-One PDF per student guaranteed.
+Student CV files are named by `student_id.pdf`. When a new generation request arrives, the existing object at `cvs/{student_id}.pdf` is replaced.
 
 ## Error Handling
 

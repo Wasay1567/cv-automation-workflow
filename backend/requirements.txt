@@ -6,9 +6,5 @@ playwright
 python-dotenv
 boto3
 botocore
-google-api-python-client
-google-auth
-google-auth-httplib2
-google-auth-oauthlib
 stream-zip
 zipstream-ng
