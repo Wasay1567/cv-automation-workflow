@@ -5,7 +5,7 @@ import logging
 import os
 import re
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 from urllib.parse import quote, unquote, urlparse
 
 import boto3
@@ -629,6 +629,7 @@ async def create_cv(
     existing_cv_rows = existing_cv_rows_result.all()
 
     cv = CVSubmission(
+        cv_id=uuid4(),
         student_id=current_user.id,
         status=CVStatus.pending_advisor,
         career_counseling=data.get("career_counseling", False),
