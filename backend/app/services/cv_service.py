@@ -756,12 +756,12 @@ async def download_cv_zip(
     if not cv_ids:
         raise HTTPException(status_code=400, detail="At least one CV id must be provided")
 
-    accessible_ids: list[str] = []
+    student_ids: list[str] = []
     for cv_id in cv_ids:
         cv = await get_cv(cv_id, current_user, db)
         if cv is None:
             raise HTTPException(status_code=404, detail=f"CV '{cv_id}' not found")
-        accessible_ids.append(str(cv.cv_id))
+        student_ids.append(str(cv.student_id))
 
     request_id = request.headers.get("X-Request-ID", "unknown")
 
@@ -770,7 +770,7 @@ async def download_cv_zip(
             async with client.stream(
                 "POST",
                 f"{PDF_SERVICE_URL}/download-zip",
-                json={"student_ids": accessible_ids},
+                json={"student_ids": student_ids},
                 headers={"X-Request-ID": request_id},
             ) as response:
                 response.raise_for_status()
@@ -783,6 +783,6 @@ async def download_cv_zip(
         headers={
             "Content-Disposition": 'attachment; filename="bulk_download.zip"',
             "X-Request-ID": request_id,
-            "X-Total-Files": str(len(accessible_ids)),
+            "X-Total-Files": str(len(student_ids)),
         },
     )
