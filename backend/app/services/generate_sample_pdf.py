@@ -80,39 +80,30 @@ def _list_image_keys_by_prefix(s3_client, prefix: str) -> list[str]:
     for page in paginator.paginate(Bucket=AWS_S3_BUCKET_NAME, Prefix=prefix):
         keys = [item["Key"] for item in page.get("Contents", []) if item.get("Key") and not item["Key"].endswith("/")]
         image_keys.extend([key for key in keys if Path(key).suffix.lower() in IMAGE_EXTENSIONS])
+    logger.info("[PDF_SERVICE] S3 image lookup completed | Prefix: %s | Matches: %d", prefix, len(image_keys))
     return image_keys
 
 
-def _fetch_profile_image_from_s3(student_id: str, image_reference: str | None = None) -> str:
+def _fetch_profile_image_from_s3(student_id: str) -> str:
     if not AWS_S3_BUCKET_NAME:
+        logger.info("[PDF_SERVICE] Profile image lookup skipped | AWS bucket not configured | Student: %s", student_id)
         return ""
 
     try:
         s3_client = _get_s3_client()
     except Exception:
+        logger.exception("[PDF_SERVICE] Failed to initialize S3 client for profile image lookup | Student: %s", student_id)
         return ""
 
-    normalized_reference = _normalize_s3_reference(image_reference or "")
-    if normalized_reference and Path(normalized_reference).suffix.lower() in IMAGE_EXTENSIONS:
-        try:
-            response = s3_client.get_object(Bucket=AWS_S3_BUCKET_NAME, Key=normalized_reference)
-            return _image_bytes_to_data_uri(response["Body"].read(), response.get("ContentType"), normalized_reference)
-        except ClientError:
-            pass
-        except (BotoCoreError, Exception):
-            pass
-
     clean_id = str(student_id).strip().strip("/")
-    prefixes: list[str] = []
-
-    if normalized_reference:
-        prefixes.append(normalized_reference.rstrip("/"))
-
     if clean_id:
         if clean_id.startswith(f"{PROFILE_PHOTO_PREFIX}/"):
-            prefixes.append(clean_id.rstrip("/"))
+            prefixes = [clean_id.rstrip("/")]
         else:
-            prefixes.append(f"{PROFILE_PHOTO_PREFIX}/{clean_id}")
+            prefixes = [f"{PROFILE_PHOTO_PREFIX}/{clean_id}"]
+    else:
+        logger.info("[PDF_SERVICE] Profile image lookup skipped | Empty student id")
+        return ""
 
     tried_prefixes: set[str] = set()
     try:
@@ -121,42 +112,62 @@ def _fetch_profile_image_from_s3(student_id: str, image_reference: str | None = 
                 continue
             tried_prefixes.add(base_prefix)
 
+            logger.info("[PDF_SERVICE] Looking up profile image in S3 | Student: %s | Prefix: %s", clean_id, base_prefix)
+
             image_keys = _list_image_keys_by_prefix(s3_client, base_prefix)
             if not image_keys:
                 image_keys = _list_image_keys_by_prefix(s3_client, f"{base_prefix}/")
             if not image_keys:
+                logger.info("[PDF_SERVICE] No profile image found for student | Student: %s | Prefix: %s", clean_id, base_prefix)
                 continue
 
             # Exactly one image is expected per student id; pick deterministic first item if duplicates exist.
             key = sorted(image_keys)[0]
             response = s3_client.get_object(Bucket=AWS_S3_BUCKET_NAME, Key=key)
+            logger.info(
+                "[PDF_SERVICE] Profile image resolved from S3 | Student: %s | Key: %s | Content-Type: %s",
+                clean_id,
+                key,
+                response.get("ContentType") or "unknown",
+            )
             return _image_bytes_to_data_uri(response["Body"].read(), response.get("ContentType"), key)
     except (ClientError, BotoCoreError, Exception):
+        logger.exception("[PDF_SERVICE] Profile image lookup failed | Student: %s", clean_id)
         return ""
 
+    logger.info("[PDF_SERVICE] Profile image not found in S3 | Student: %s", clean_id)
     return ""
 
 
 def resolve_profile_image(profile_image_url: str | None, student_id: str | None = None) -> str:
     normalized = str(profile_image_url or "").strip()
+    logger.info(
+        "[PDF_SERVICE] Resolving profile image | Student: %s | Has provided URL: %s",
+        student_id or "unknown",
+        bool(normalized),
+    )
+
     if not normalized:
         return _fetch_profile_image_from_s3(student_id or "") if student_id else ""
 
     if normalized.startswith("data:"):
+        logger.info("[PDF_SERVICE] Using provided profile image data URI | Student: %s", student_id or "unknown")
         return normalized
 
     if normalized.startswith(("http://", "https://")):
+        logger.info("[PDF_SERVICE] Downloading profile image from URL | Student: %s | URL: %s", student_id or "unknown", normalized)
         return _download_image_as_data_uri(normalized)
 
-    if normalized.startswith("s3://") or normalized.startswith(f"{PROFILE_PHOTO_PREFIX}/") or "/" in normalized:
-        resolved_from_s3 = _fetch_profile_image_from_s3(student_id or "", normalized)
+    if student_id:
+        resolved_from_s3 = _fetch_profile_image_from_s3(student_id)
         if resolved_from_s3:
             return resolved_from_s3
 
-    if student_id:
-        resolved_from_s3 = _fetch_profile_image_from_s3(student_id, normalized)
-        if resolved_from_s3:
-            return resolved_from_s3
+    logger.info(
+        "[PDF_SERVICE] Falling back to provided profile image value | Student: %s | Value: %s",
+        student_id or "unknown",
+        normalized,
+    )
 
     return normalized
 
