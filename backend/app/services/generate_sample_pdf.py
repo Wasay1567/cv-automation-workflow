@@ -83,7 +83,7 @@ def _list_image_keys_by_prefix(s3_client, prefix: str) -> list[str]:
     return image_keys
 
 
-def _fetch_profile_image_from_s3(cv_id: str, image_reference: str | None = None) -> str:
+def _fetch_profile_image_from_s3(student_id: str, image_reference: str | None = None) -> str:
     if not AWS_S3_BUCKET_NAME:
         return ""
 
@@ -102,7 +102,7 @@ def _fetch_profile_image_from_s3(cv_id: str, image_reference: str | None = None)
         except (BotoCoreError, Exception):
             pass
 
-    clean_id = str(cv_id).strip().strip("/")
+    clean_id = str(student_id).strip().strip("/")
     prefixes: list[str] = []
 
     if normalized_reference:
@@ -137,10 +137,10 @@ def _fetch_profile_image_from_s3(cv_id: str, image_reference: str | None = None)
     return ""
 
 
-def resolve_profile_image(profile_image_url: str | None, cv_id: str | None = None) -> str:
+def resolve_profile_image(profile_image_url: str | None, student_id: str | None = None) -> str:
     normalized = str(profile_image_url or "").strip()
     if not normalized:
-        return _fetch_profile_image_from_s3(cv_id or "") if cv_id else ""
+        return _fetch_profile_image_from_s3(student_id or "") if student_id else ""
 
     if normalized.startswith("data:"):
         return normalized
@@ -149,12 +149,12 @@ def resolve_profile_image(profile_image_url: str | None, cv_id: str | None = Non
         return _download_image_as_data_uri(normalized)
 
     if normalized.startswith("s3://") or normalized.startswith(f"{PROFILE_PHOTO_PREFIX}/") or "/" in normalized:
-        resolved_from_s3 = _fetch_profile_image_from_s3(cv_id or "", normalized)
+        resolved_from_s3 = _fetch_profile_image_from_s3(student_id or "", normalized)
         if resolved_from_s3:
             return resolved_from_s3
 
-    if cv_id:
-        resolved_from_s3 = _fetch_profile_image_from_s3(cv_id, normalized)
+    if student_id:
+        resolved_from_s3 = _fetch_profile_image_from_s3(student_id, normalized)
         if resolved_from_s3:
             return resolved_from_s3
 
@@ -207,7 +207,7 @@ def _build_template_payload(data: dict[str, Any]) -> dict[str, Any]:
         "email": data.get("email", ""),
         "address": data.get("address", ""),
         "about_me": data.get("about_me", ""),
-        "profile_image_url": resolve_profile_image(data.get("profile_image_url"), data.get("cv_id") or data.get("student_id")),
+        "profile_image_url": resolve_profile_image(data.get("profile_image_url"), data.get("student_id")),
         "skills": data.get("skills") or [],
         "languages": data.get("languages") or [],
         "certificates": data.get("certificates") or [],

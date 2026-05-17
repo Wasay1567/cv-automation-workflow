@@ -89,7 +89,7 @@ def main() -> int:
     print("Using payload:\n" + json.dumps(payload, indent=2))
 
     if args.debug_image:
-        resolved = resolve_profile_image(payload.get("profile_image_url"), payload.get("cv_id"))
+        resolved = resolve_profile_image(payload.get("profile_image_url"), payload.get("student_id"))
         prefix = resolved[:40]
         data_uri_match = re.match(r"^data:([^;]+);base64,", resolved)
         print(
