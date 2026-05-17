@@ -118,7 +118,8 @@
     margin-bottom: 10px;
   }
 
-  .s-section-title .icon {
+  .s-section-title .icon,
+  .m-section-title .icon {
     width: 20px;
     height: 20px;
     flex-shrink: 0;
@@ -127,10 +128,20 @@
     justify-content: center;
   }
 
-  .s-section-title .icon svg {
+  .s-section-title .icon svg,
+  .m-section-title .icon svg {
     width: 18px;
     height: 18px;
-    fill: #f0ede8;
+    display: block;
+    fill: currentColor;
+  }
+
+  .s-section-title .icon {
+    color: #f0ede8;
+  }
+
+  .m-section-title .icon {
+    color: #2e2b28;
   }
 
   .about-text {
@@ -236,15 +247,16 @@
   }
 
   .main-header {
-    min-height: 275px;
-    max-height: 275px;
-    padding: 30px 28px;
+    min-height: 180px;
+    max-height: 180px;
+    padding: 22px 28px 18px;
     padding-right: 0px;
-    margin: 10px 28px 18px;
+    margin: 10px 28px 8px;
     margin-right: 10px;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
+    gap: 6px;
     overflow: hidden;
   }
 
@@ -252,7 +264,7 @@
     font-family: 'Montserrat', sans-serif;
     font-weight: 700;
     font-size: 55px;
-    margin-top: -50px;
+    margin-top: 0;
     color: #2e2b28;
     line-height: 1;
     letter-spacing: -0.5px;
@@ -265,7 +277,7 @@
     font-size: 20px;
     color: black;
     font-weight: 400;
-    margin-top: 6px;
+    margin-top: 0;
   }
 
   .main-body {
@@ -448,10 +460,10 @@
     }
 
     .main-header {
-      margin: 10px 14px 16px;
-      padding: 24px 18px;
-      min-height: 240px;
-      max-height: 240px;
+      margin: 10px 14px 10px;
+      padding: 20px 18px 14px;
+      min-height: 170px;
+      max-height: 170px;
     }
   }
 </style>
