@@ -27,6 +27,7 @@ class Education(BaseModel):
 
 class CVRequest(BaseModel):
     student_id: str
+    cv_id: Optional[str] = None
     name: str
     profession: str
     phone: str

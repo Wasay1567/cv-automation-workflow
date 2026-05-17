@@ -23,7 +23,7 @@ TEMPLATE_DIR = BASE_DIR.parent / "templates"
 TEMPLATE_NAME = "cv_template.html"
 OUTPUT_FILE = BASE_DIR / "sample_cv.pdf"
 PROFILE_PHOTO_PREFIX = "profile-photo"
-IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg")
 IMAGE_FALLBACK = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
 
 logger = logging.getLogger(__name__)
@@ -37,56 +37,6 @@ def _ensure_windows_proactor_policy() -> None:
     if policy.__class__.__name__ == "WindowsSelectorEventLoopPolicy":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
-
-SAMPLE_DATA = {
-    "student_id": "SAMPLE-0001",
-    "name": "Abdul Wasay Soomro",
-    "profession": "DevOps Engineer",
-    "phone": "+123-456-7890",
-    "email": "test@example.com",
-    "address": "123 Anywhere Street, Any City",
-    "about_me": "Experienced DevOps Engineer with a strong background in cloud infrastructure, automation, and continuous integration.",
-    "profile_image_url": "https://img.freepik.com/free-photo/portrait-white-man-isolated_53876-40306.jpg?semt=ais_hybrid&w=740&q=80",
-    "skills": [
-        {"name": "Web Design", "level": 5},
-        {"name": "Branding", "level": 4},
-        {"name": "Graphic Design", "level": 5},
-        {"name": "SEO", "level": 4},
-        {"name": "Marketing", "level": 3},
-    ],
-    "languages": [
-        {"name": "English", "percent": 95},
-        {"name": "French", "percent": 70},
-    ],
-    "certificates": [
-        "AWS Certified DevOps Engineer - Professional",
-        "Docker and Kubernetes Administration",
-        "Google Cloud Professional Cloud Architect",
-    ],
-    "personality_score": 8,
-    "experience": [
-        {
-            "date": "(2020 –2023)",
-            "title": "Senior Graphic Designer",
-            "company": "Fauget studio",
-            "description": ["create more than 100 graphic designs for big companies", "complete a lot of complicated work"],
-        },
-        {
-            "date": "(2017 – 2019)",
-            "title": "Senior Graphic Designer",
-            "company": "Iarana, inc",
-            "description": ["create more than 100 graphic designs for big companies", "complete a lot of complicated work"],
-        },
-    ],
-    "education": [
-        {
-            "date": "(August 2024- Present)",
-            "degree": "Bachelor of Software Engineering",
-            "institution": "NED UNIVERSITY",
-            "description": "3.5",
-        }
-    ],
-}
 
 
 @lru_cache(maxsize=1)
@@ -113,33 +63,27 @@ def _download_image_as_data_uri(url: str) -> str:
         return IMAGE_FALLBACK
 
 
-def _s3_image_keys(cv_id: str) -> list[str]:
-    clean_id = str(cv_id).strip().strip("/")
-    if not clean_id:
-        return []
-
-    if clean_id.startswith(f"{PROFILE_PHOTO_PREFIX}/"):
-        base_key = clean_id
-        file_name = Path(clean_id).name
-        folder_prefix = clean_id if clean_id.endswith("/") else f"{clean_id}/"
-    else:
-        base_key = f"{PROFILE_PHOTO_PREFIX}/{clean_id}"
-        file_name = clean_id
-        folder_prefix = f"{PROFILE_PHOTO_PREFIX}/{clean_id}/"
-
-    candidates = [base_key]
-    for extension in (".jpg", ".jpeg", ".png", ".webp", ".gif"):
-        candidates.append(f"{base_key}{extension}")
-    candidates.append(f"{PROFILE_PHOTO_PREFIX}/{file_name}.jpg")
-    candidates.append(f"{PROFILE_PHOTO_PREFIX}/{file_name}.jpeg")
-    candidates.append(f"{PROFILE_PHOTO_PREFIX}/{file_name}.png")
-    candidates.append(f"{PROFILE_PHOTO_PREFIX}/{file_name}.webp")
-    candidates.append(f"{PROFILE_PHOTO_PREFIX}/{file_name}.gif")
-    candidates.append(folder_prefix)
-    return list(dict.fromkeys(candidates))
+def _normalize_s3_reference(reference: str) -> str:
+    clean_reference = reference.strip().strip("/")
+    if clean_reference.startswith("s3://"):
+        clean_reference = clean_reference[5:]
+        if "/" in clean_reference:
+            clean_reference = clean_reference.split("/", 1)[1]
+        else:
+            clean_reference = ""
+    return clean_reference.strip().strip("/")
 
 
-def _fetch_profile_image_from_s3(cv_id: str) -> str:
+def _list_image_keys_by_prefix(s3_client, prefix: str) -> list[str]:
+    image_keys: list[str] = []
+    paginator = s3_client.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=AWS_S3_BUCKET_NAME, Prefix=prefix):
+        keys = [item["Key"] for item in page.get("Contents", []) if item.get("Key") and not item["Key"].endswith("/")]
+        image_keys.extend([key for key in keys if Path(key).suffix.lower() in IMAGE_EXTENSIONS])
+    return image_keys
+
+
+def _fetch_profile_image_from_s3(cv_id: str, image_reference: str | None = None) -> str:
     if not AWS_S3_BUCKET_NAME:
         return ""
 
@@ -148,24 +92,43 @@ def _fetch_profile_image_from_s3(cv_id: str) -> str:
     except Exception:
         return ""
 
-    for key in _s3_image_keys(cv_id):
+    normalized_reference = _normalize_s3_reference(image_reference or "")
+    if normalized_reference and Path(normalized_reference).suffix.lower() in IMAGE_EXTENSIONS:
         try:
-            response = s3_client.get_object(Bucket=AWS_S3_BUCKET_NAME, Key=key)
-            return _image_bytes_to_data_uri(response["Body"].read(), response.get("ContentType"), key)
+            response = s3_client.get_object(Bucket=AWS_S3_BUCKET_NAME, Key=normalized_reference)
+            return _image_bytes_to_data_uri(response["Body"].read(), response.get("ContentType"), normalized_reference)
         except ClientError:
-            continue
+            pass
         except (BotoCoreError, Exception):
-            continue
+            pass
 
-    prefix = f"{PROFILE_PHOTO_PREFIX}/{str(cv_id).strip().strip('/')}/"
+    clean_id = str(cv_id).strip().strip("/")
+    prefixes: list[str] = []
+
+    if normalized_reference:
+        prefixes.append(normalized_reference.rstrip("/"))
+
+    if clean_id:
+        if clean_id.startswith(f"{PROFILE_PHOTO_PREFIX}/"):
+            prefixes.append(clean_id.rstrip("/"))
+        else:
+            prefixes.append(f"{PROFILE_PHOTO_PREFIX}/{clean_id}")
+
+    tried_prefixes: set[str] = set()
     try:
-        paginator = s3_client.get_paginator("list_objects_v2")
-        for page in paginator.paginate(Bucket=AWS_S3_BUCKET_NAME, Prefix=prefix):
-            keys = [item["Key"] for item in page.get("Contents", []) if item.get("Key") and not item["Key"].endswith("/")]
-            image_keys = [key for key in keys if Path(key).suffix.lower() in IMAGE_EXTENSIONS]
+        for base_prefix in prefixes:
+            if not base_prefix or base_prefix in tried_prefixes:
+                continue
+            tried_prefixes.add(base_prefix)
+
+            image_keys = _list_image_keys_by_prefix(s3_client, base_prefix)
+            if not image_keys:
+                image_keys = _list_image_keys_by_prefix(s3_client, f"{base_prefix}/")
             if not image_keys:
                 continue
-            key = sorted(image_keys, key=lambda item: (0 if Path(item).name.lower().startswith("profile") else 1, item))[0]
+
+            # Exactly one image is expected per student id; pick deterministic first item if duplicates exist.
+            key = sorted(image_keys)[0]
             response = s3_client.get_object(Bucket=AWS_S3_BUCKET_NAME, Key=key)
             return _image_bytes_to_data_uri(response["Body"].read(), response.get("ContentType"), key)
     except (ClientError, BotoCoreError, Exception):
@@ -184,6 +147,16 @@ def resolve_profile_image(profile_image_url: str | None, cv_id: str | None = Non
 
     if normalized.startswith(("http://", "https://")):
         return _download_image_as_data_uri(normalized)
+
+    if normalized.startswith("s3://") or normalized.startswith(f"{PROFILE_PHOTO_PREFIX}/") or "/" in normalized:
+        resolved_from_s3 = _fetch_profile_image_from_s3(cv_id or "", normalized)
+        if resolved_from_s3:
+            return resolved_from_s3
+
+    if cv_id:
+        resolved_from_s3 = _fetch_profile_image_from_s3(cv_id, normalized)
+        if resolved_from_s3:
+            return resolved_from_s3
 
     return normalized
 
@@ -268,6 +241,3 @@ def render_pdf_from_data(data: dict[str, Any], output_file: Path) -> Path:
 
     return output_file
 
-
-def render_sample_pdf() -> Path:
-    return render_pdf_from_data(SAMPLE_DATA, OUTPUT_FILE)

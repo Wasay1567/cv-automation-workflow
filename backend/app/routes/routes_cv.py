@@ -45,6 +45,7 @@ def generate_pdf_endpoint(
             "[ROUTE_GENERATE] Starting CV generation for student %s | Request-ID: %s | Provider: %s",
             student_id,
             request_id,
+            "default",
         )
         
         cv_data = data.model_dump() if hasattr(data, 'model_dump') else data.dict()
