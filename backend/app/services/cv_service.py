@@ -343,7 +343,12 @@ async def _generate_cv_pdf_and_store_file_id(cv_id: UUID) -> None:
                 data = response.json() if response.content else {}
 
             # BUG FIX: was silently ignoring all three keys missing; now logs clearly
-            file_id = data.get("file_id") or data.get("id") or data.get("drive_file_id")
+            file_id = (
+                data.get("file_id")
+                or data.get("id")
+                or data.get("drive_file_id")
+                or data.get("object_id")
+            )
             if not file_id:
                 logger.error("PDF service response missing file_id for cv_id=%s. Response: %s", cv_id, data)
                 return
