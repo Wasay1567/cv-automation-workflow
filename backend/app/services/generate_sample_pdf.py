@@ -8,7 +8,7 @@ import mimetypes
 import sys
 from tempfile import NamedTemporaryFile
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, unquote, urlparse
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -60,7 +60,21 @@ def _download_image_as_data_uri(url: str) -> str:
         response.raise_for_status()
         return _image_bytes_to_data_uri(response.content, response.headers.get("Content-Type"), url)
     except Exception:
+        logger.exception("[PDF_SERVICE] Failed to download profile image from URL: %s", url)
         return IMAGE_FALLBACK
+
+
+def _extract_s3_key_from_url(url: str) -> str:
+    parsed = urlparse(url)
+    key = unquote(parsed.path).lstrip("/")
+    if not key:
+        return ""
+
+    bucket_prefix = f"{AWS_S3_BUCKET_NAME or ''}/"
+    if bucket_prefix and key.startswith(bucket_prefix):
+        key = key[len(bucket_prefix):]
+
+    return key.strip().strip("/")
 
 
 def _normalize_s3_reference(reference: str) -> str:
@@ -155,6 +169,30 @@ def resolve_profile_image(profile_image_url: str | None, student_id: str | None 
         return normalized
 
     if normalized.startswith(("http://", "https://")):
+        s3_key = _extract_s3_key_from_url(normalized)
+        if s3_key and s3_key.startswith(f"{PROFILE_PHOTO_PREFIX}/"):
+            logger.info(
+                "[PDF_SERVICE] Profile image URL maps to S3 key | Student: %s | Key: %s",
+                student_id or "unknown",
+                s3_key,
+            )
+            try:
+                s3_client = _get_s3_client()
+                response = s3_client.get_object(Bucket=AWS_S3_BUCKET_NAME, Key=s3_key)
+                logger.info(
+                    "[PDF_SERVICE] Profile image loaded from S3 URL key | Student: %s | Key: %s | Content-Type: %s",
+                    student_id or "unknown",
+                    s3_key,
+                    response.get("ContentType") or "unknown",
+                )
+                return _image_bytes_to_data_uri(response["Body"].read(), response.get("ContentType"), s3_key)
+            except Exception:
+                logger.exception(
+                    "[PDF_SERVICE] Failed to load profile image from S3 URL key; falling back to HTTP download | Student: %s | Key: %s",
+                    student_id or "unknown",
+                    s3_key,
+                )
+
         logger.info("[PDF_SERVICE] Downloading profile image from URL | Student: %s | URL: %s", student_id or "unknown", normalized)
         return _download_image_as_data_uri(normalized)
 
