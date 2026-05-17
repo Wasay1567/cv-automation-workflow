@@ -9,7 +9,7 @@ if not api_key:
 
 _gemini_client = genai.Client(api_key=api_key)
 
-def get_gemini_response(prompt: str, model: str = "gemini-1.5-flash") -> str:
+def get_gemini_response(prompt: str, model: str = "gemma-4-26b-a4b-it") -> str:
     try:
         if _gemini_client is not None:
             response = _gemini_client.models.generate_content(model=model, contents=prompt)
