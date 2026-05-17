@@ -206,33 +206,41 @@ def stream_bulk_cv_zip(student_ids: Iterable[str], provider: str | None = None):
         logger.error("[PDF_SERVICE] Invalid S3 provider instance for bulk download: %s", exc)
         raise BulkDownloadError("S3 provider is not initialized correctly") from exc
 
-    missing_keys: list[str] = []
     key_by_student: dict[str, str] = {}
 
     for student_id in deduped_ids:
         key = storage._object_key(student_id)
         key_by_student[student_id] = key
-        try:
-            s3_client.head_object(Bucket=bucket_name, Key=key)
-        except ClientError as exc:
-            error_code = exc.response.get("Error", {}).get("Code", "Unknown")
-            if error_code in {"404", "NoSuchKey", "NotFound"}:
-                missing_keys.append(student_id)
-            else:
-                logger.error("[PDF_SERVICE] Failed validating S3 object for student %s (key: %s): %s\n%s", student_id, key, exc, traceback.format_exc())
-                raise BulkDownloadError(f"Failed to validate S3 object for student_id {student_id}: {exc}") from exc
-
-    if missing_keys:
-        logger.warning("[PDF_SERVICE] Bulk download aborted. Missing CVs for student_ids: %s", ", ".join(missing_keys))
-        raise BulkDownloadError(f"CV not found for student_ids: {', '.join(missing_keys)}")
+        logger.info(
+            "[PDF_SERVICE] Bulk ZIP candidate registered | Student: %s | Bucket: %s | Key: %s",
+            student_id,
+            bucket_name,
+            key,
+        )
 
     def s3_chunks_for(student_id: str, key: str):
         try:
+            logger.info(
+                "[PDF_SERVICE] Bulk ZIP reading object | Student: %s | Bucket: %s | Key: %s",
+                student_id,
+                bucket_name,
+                key,
+            )
             response = s3_client.get_object(Bucket=bucket_name, Key=key)
             body = response["Body"]
             for chunk in body.iter_chunks(chunk_size=64 * 1024):
                 if chunk:
                     yield chunk
+        except ClientError as exc:
+            error_code = exc.response.get("Error", {}).get("Code", "Unknown")
+            logger.warning(
+                "[PDF_SERVICE] Bulk ZIP missing object | Student: %s | Bucket: %s | Key: %s | Error: %s",
+                student_id,
+                bucket_name,
+                key,
+                error_code,
+            )
+            raise BulkDownloadError(f"CV not found for student_id {student_id}") from exc
         except Exception as exc:
             logger.error("[PDF_SERVICE] Failed to stream S3 object for student %s (key: %s): %s\n%s", student_id, key, exc, traceback.format_exc())
             raise BulkDownloadError(f"Failed while reading CV for student_id {student_id}: {exc}") from exc
