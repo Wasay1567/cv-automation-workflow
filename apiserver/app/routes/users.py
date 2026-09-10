@@ -8,6 +8,7 @@ from app.controllers.users import sync_user_preferences as sync_user_preferences
 from app.middlewares.admin import get_current_auth, get_current_user
 from app.database import get_db
 from app.models import User
+from app.services.admin import get_cv_submission_deadline
 
 
 class SyncUserRequest(BaseModel):
@@ -31,6 +32,14 @@ async def get_profile(user: User = Depends(get_current_user)):
         "status": user.status.value,
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
+
+
+@router.get("/deadline")
+async def get_deadline(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return await get_cv_submission_deadline(db)
 
 
 @router.post("/user/sync")

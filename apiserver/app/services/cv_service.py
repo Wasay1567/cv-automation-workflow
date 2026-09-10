@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 import asyncio
 import json
 import logging
@@ -22,7 +22,7 @@ from app.services.email_service import EmailService
 from app.models import (
     Academic, Achievement, CVStatus, CVSubmission, Certificate,
     ExtraCurricular, FYP, IndustrialVisit, Internship, PersonalInfo,
-    Reference, Skill, User, UserRole,
+    Reference, Skill, SysVar, User, UserRole,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,6 +34,8 @@ CONTENT_TYPE_TO_EXTENSION = {
     "image/jpg": ".jpg",
     "image/png": ".png"
 }
+
+CV_SUBMISSION_DEADLINE_KEY = "cv_submission_deadline"
 
 
 # ---------------------------------------------------------------------------
@@ -523,12 +525,37 @@ def _cv_load_options() -> list:
 # CRUD operations
 # ---------------------------------------------------------------------------
 
+async def ensure_cv_submission_deadline_open(db: AsyncSession) -> None:
+    result = await db.execute(
+        select(SysVar.value).where(SysVar.key == CV_SUBMISSION_DEADLINE_KEY)
+    )
+    raw_deadline = result.scalar_one_or_none()
+    if raw_deadline is None:
+        return
+
+    try:
+        deadline = datetime.fromisoformat(raw_deadline)
+    except ValueError as exc:
+        logger.error("Invalid %s value in sys_var: %s", CV_SUBMISSION_DEADLINE_KEY, raw_deadline)
+        raise HTTPException(status_code=500, detail="CV submission deadline is misconfigured") from exc
+
+    if deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=timezone.utc)
+
+    if datetime.now(timezone.utc) >= deadline.astimezone(timezone.utc):
+        raise HTTPException(
+            status_code=403,
+            detail="The CV submission deadline has passed",
+        )
+
 async def create_cv(
     data: dict[str, Any],
     current_user: User,
     db: AsyncSession,
     student_image_file: Any | None = None,
 ) -> dict[str, Any]:
+    await ensure_cv_submission_deadline_open(db)
+
     # Reuse an existing CV for this student to keep cv_id stable across resubmissions.
     existing_result = await db.execute(
         select(CVSubmission)
@@ -634,6 +661,8 @@ async def update_cv(
     db: AsyncSession,
     student_image_file: Any | None = None,
 ) -> dict[str, Any] | None:
+    await ensure_cv_submission_deadline_open(db)
+
     result = await db.execute(
         select(CVSubmission)
         .options(*_cv_load_options())

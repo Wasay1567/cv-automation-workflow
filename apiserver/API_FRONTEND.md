@@ -316,6 +316,64 @@ Response includes advisor creation time:
 { "message": "Advisor rejected successfully" }
 ```
 
+### `PUT /api/admin/deadline`
+Create or modify the CV submission deadline. Admin authentication is required.
+
+Request body:
+```json
+{
+  "deadline": "2026-09-30T23:59:59+05:00"
+}
+```
+
+The deadline accepts an ISO-8601 datetime. If no timezone is included, the backend treats it as UTC. The saved value is normalized to UTC.
+
+When this endpoint succeeds, the backend sends a Resend email to every active student who does not have a submitted CV. Students with a draft CV are included. The notification is sent both when the deadline is first created and when it is modified.
+
+Success response `200`:
+```json
+{
+  "key": "cv_submission_deadline",
+  "deadline": "2026-09-30T18:59:59+00:00",
+  "notified_count": 12,
+  "message": "CV submission deadline saved successfully"
+}
+```
+
+Required backend environment variable for email delivery:
+- `RESEND_API_KEY`
+
+### Deadline behavior for CV endpoints
+`POST /api/cv-submissions/` and `PUT /api/cv-submissions/{cv_id}` check the stored deadline before changing the CV or uploading a new image.
+
+If the deadline has passed, the response is `403`:
+```json
+{ "detail": "The CV submission deadline has passed" }
+```
+
+If no deadline has been configured, CV create/update requests remain allowed.
+
+### `GET /api/deadline`
+Returns the current CV submission deadline for any authenticated user. This endpoint does not require admin access.
+
+Success response when configured:
+```json
+{
+  "key": "cv_submission_deadline",
+  "deadline": "2026-09-30T18:59:59+00:00",
+  "configured": true
+}
+```
+
+Response when no deadline has been configured:
+```json
+{
+  "key": "cv_submission_deadline",
+  "deadline": null,
+  "configured": false
+}
+```
+
 ## Clerk Webhook API
 ### `POST /webhooks/clerk`
 Used by Clerk only.

@@ -44,6 +44,17 @@ class CVStatus(str, Enum):
     rejected = "rejected"
 
 
+class SysVar(Base):
+    __tablename__ = "sys_var"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    key = Column(String(255), unique=True, nullable=False)
+    value = Column(Text, nullable=False)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+
 # ============================
 # USERS
 # ============================

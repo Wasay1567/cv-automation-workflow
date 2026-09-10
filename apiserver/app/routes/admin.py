@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -9,6 +9,7 @@ from app.controllers.admin import (
     approve_advisor as approve_advisor_controller,
     reject_advisor as reject_advisor_controller,
     notify_students_without_cv as notify_students_without_cv_controller,
+    set_cv_submission_deadline as set_cv_submission_deadline_controller,
 )
 from app.middlewares.admin import require_active_admin
 from app.database import get_db
@@ -24,6 +25,11 @@ class BulkNotifyMissingCVPayload(BaseModel):
     subject: str
     body: str
     deadline: date
+
+
+class CVSubmissionDeadlinePayload(BaseModel):
+    deadline: datetime
+
 
 @router.get("/advisors/pending")
 async def get_pending_advisors(db: AsyncSession = Depends(get_db)):
@@ -47,3 +53,11 @@ async def notify_students_without_cv(payload: BulkNotifyMissingCVPayload, db: As
         deadline=payload.deadline,
         db=db,
     )
+
+
+@router.put("/deadline")
+async def set_cv_submission_deadline(
+    payload: CVSubmissionDeadlinePayload,
+    db: AsyncSession = Depends(get_db),
+):
+    return await set_cv_submission_deadline_controller(payload.deadline, db)
