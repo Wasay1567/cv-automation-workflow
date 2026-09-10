@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+jinja2
+playwright
+python-dotenv
+boto3
+botocore
+requests
+stream-zip
+zipstream-ng
