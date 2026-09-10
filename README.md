@@ -36,7 +36,7 @@
 
 ## EC2 Deployment
 
-The `deploy` branch runs CI before deployment. CI compiles both Python services, validates Compose, and builds both images. The deployment job then connects to EC2 and:
+The `main` branch runs CI before deployment. CI compiles both Python services, validates Compose, and builds both images. The deployment job then connects to EC2 and:
 
 - Installs Docker if the host is new and clones the repository if it is missing.
 - Writes the GitHub secret `APP_ENV` to the host's `.env` file with restrictive permissions.

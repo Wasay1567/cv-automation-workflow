@@ -122,7 +122,9 @@ jobs:
             cvgen_changed="$initial_deploy"
             migrations_changed=false
 
-            if has_changed 'apiserver/'; then api_changed=true; fi
+            if has_changed '^apiserver/' && ! has_changed '^apiserver/alembic/'; then
+              api_changed=true
+            fi
             if has_changed 'cvGen/'; then cvgen_changed=true; fi
             if has_changed '^docker-compose\.yaml$'; then
               api_changed=true
