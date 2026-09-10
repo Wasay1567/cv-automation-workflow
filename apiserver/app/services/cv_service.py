@@ -27,7 +27,7 @@ from app.models import (
 
 logger = logging.getLogger(__name__)
 
-PDF_SERVICE_URL = "http://172.31.79.198:8080"
+PDF_SERVICE_URL = os.getenv("PDF_SERVICE_URL", "http://cvgen:8080")
 
 CONTENT_TYPE_TO_EXTENSION = {
     "image/jpeg": ".jpg",

@@ -32,6 +32,7 @@ COPY --from=builder /install /usr/local
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
     libnss3 \
     libdbus-1-3 \
     libatk1.0-0 \

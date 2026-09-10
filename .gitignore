@@ -1,0 +1,7 @@
+.env
+.env.*
+!.env.example
+.deploy-sha
+.env.sha256
+__pycache__/
+*.py[cod]

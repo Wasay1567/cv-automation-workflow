@@ -1,53 +1,54 @@
-version: "3.9"
-
 services:
-
   db:
-    image: postgres:16
-    container_name: cv_postgres
+    image: postgres:16-alpine
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: cv_db
-    ports:
-      - "5432:5432"
+    env_file:
+      - ./.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - cv_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
-      retries: 5
       timeout: 5s
+      retries: 12
+      start_period: 10s
 
   backend:
     build:
       context: ./apiserver
-    container_name: cv_backend
     restart: unless-stopped
+    env_file:
+      - ./.env
     depends_on:
       db:
         condition: service_healthy
-    env_file:
-      - ./apiserver/app/.env
     ports:
       - "8000:8000"
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
       interval: 10s
-      retries: 5
       timeout: 5s
+      retries: 12
+      start_period: 15s
     networks:
       - cv_network
 
-  cloudbeaver:
-    image: dbeaver/cloudbeaver:latest
-    container_name: cv_cloudbeaver
+  cvgen:
+    build:
+      context: ./cvGen
     restart: unless-stopped
+    env_file:
+      - ./.env
     ports:
-      - "8978:8978"
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
     networks:
       - cv_network
 
