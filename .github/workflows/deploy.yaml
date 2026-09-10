@@ -1,53 +1,194 @@
-name: Deploy Backend
+name: CI and Deploy
 
 on:
   push:
-    branches:
-      - deploy
-      
-  pull_request:
-    branches:
-      - deploy
-    types:
-      - closed
-  
-  
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
 
 jobs:
+  validate:
+    name: Validate and build images
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compile Python services
+        run: python -m compileall -q apiserver/app cvGen/app
+
+      - name: Create CI environment
+        run: cp .env.example .env
+
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+
+      - name: Build service images
+        run: docker compose build backend cvgen
 
   deploy:
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
-
+    name: Deploy to EC2
+    needs: validate
     runs-on: ubuntu-latest
-
     steps:
-
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.3
-
+      - name: Deploy changed services
+        uses: appleboy/ssh-action@v1.2.2
+        env:
+          APP_ENV: ${{ secrets.APP_ENV }}
+          DEPLOY_BRANCH: ${{ github.ref_name }}
+          DEPLOY_REPOSITORY: ${{ github.repository }}
+          DEPLOY_TOKEN: ${{ github.token }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-
+          envs: APP_ENV,DEPLOY_BRANCH,DEPLOY_REPOSITORY,DEPLOY_TOKEN
+          script_stop: true
           script: |
+            set -Eeuo pipefail
 
-            cd ~/cv-automation-workflow
+            APP_DIR="$HOME/cv-automation-workflow"
+            REPOSITORY_URL="https://x-access-token:${DEPLOY_TOKEN}@github.com/${DEPLOY_REPOSITORY}.git"
 
-            echo "Pull latest code"
-            git pull origin deploy
+            if ! command -v docker >/dev/null 2>&1; then
+              curl -fsSL https://get.docker.com | sudo sh
+              sudo usermod -aG docker "$USER" || true
+            fi
 
-            docker compose up -d --build backend
+            if docker info >/dev/null 2>&1; then
+              DOCKER="docker"
+            else
+              DOCKER="sudo docker"
+            fi
 
-            echo "Waiting for backend to become healthy..."
+            if ! $DOCKER compose version >/dev/null 2>&1; then
+              echo "Docker Compose plugin is required on the EC2 host" >&2
+              exit 1
+            fi
 
-            until [ "$(docker inspect -f {{.State.Health.Status}} cv_backend)" == "healthy" ]; do
-              echo "Backend not ready yet..."
+            if [ ! -d "$APP_DIR/.git" ]; then
+              mkdir -p "$(dirname "$APP_DIR")"
+              if [ -e "$APP_DIR" ]; then
+                mv "$APP_DIR" "$APP_DIR.bootstrap.$(date +%s)"
+              fi
+              git clone --branch "$DEPLOY_BRANCH" "$REPOSITORY_URL" "$APP_DIR"
+              previous_sha=""
+            else
+              previous_sha="$(cat "$APP_DIR/.deploy-sha" 2>/dev/null || true)"
+              git -C "$APP_DIR" fetch origin "$DEPLOY_BRANCH"
+              git -C "$APP_DIR" checkout "$DEPLOY_BRANCH"
+              git -C "$APP_DIR" merge --ff-only "origin/$DEPLOY_BRANCH"
+            fi
+
+            cd "$APP_DIR"
+            umask 077
+            printf '%s\n' "$APP_ENV" > .env
+
+            current_sha="$(git rev-parse HEAD)"
+            env_hash="$(sha256sum .env | cut -d' ' -f1)"
+            previous_env_hash="$(cat .env.sha256 2>/dev/null || true)"
+
+            changed_files=""
+            if [ -n "$previous_sha" ]; then
+              changed_files="$(git diff --name-only "$previous_sha" "$current_sha" || true)"
+            fi
+
+            has_changed() {
+              printf '%s\n' "$changed_files" | grep -Eq "^$1"
+            }
+
+            initial_deploy=false
+            if [ -z "$previous_sha" ]; then
+              initial_deploy=true
+            fi
+
+            config_changed=false
+            if [ "$env_hash" != "$previous_env_hash" ]; then
+              config_changed=true
+            fi
+
+            api_changed="$initial_deploy"
+            cvgen_changed="$initial_deploy"
+            migrations_changed=false
+
+            if has_changed 'apiserver/'; then api_changed=true; fi
+            if has_changed 'cvGen/'; then cvgen_changed=true; fi
+            if has_changed '^docker-compose\.yaml$'; then
+              api_changed=true
+              cvgen_changed=true
+            fi
+            if has_changed '^apiserver/alembic/'; then migrations_changed=true; fi
+            if [ "$config_changed" = true ]; then
+              api_changed=true
+              cvgen_changed=true
+            fi
+
+            db_id="$($DOCKER compose ps -q db)"
+            if [ -z "$db_id" ]; then
+              $DOCKER compose up -d db
+              db_id="$($DOCKER compose ps -q db)"
+            fi
+
+            echo "Waiting for PostgreSQL health..."
+            for attempt in $(seq 1 60); do
+              if [ "$($DOCKER inspect -f '{{.State.Health.Status}}' "$db_id")" = healthy ]; then
+                break
+              fi
+              if [ "$attempt" = 60 ]; then
+                $DOCKER compose logs --tail=100 db
+                exit 1
+              fi
               sleep 5
             done
 
-            echo "Backend healthy. Running migrations..."
+            if [ "$api_changed" = true ] || [ "$migrations_changed" = true ]; then
+              $DOCKER compose build backend
+            fi
+            if [ "$cvgen_changed" = true ]; then
+              $DOCKER compose build cvgen
+            fi
 
-            docker exec cv_backend alembic upgrade head
+            if [ "$initial_deploy" = true ] || [ "$migrations_changed" = true ]; then
+              echo "Applying Alembic migrations..."
+              $DOCKER compose run --rm --no-deps backend alembic upgrade head
+            fi
 
-            echo "Deployment complete"
+            if [ "$api_changed" = true ]; then
+              $DOCKER compose up -d --no-deps backend
+            fi
+            if [ "$cvgen_changed" = true ]; then
+              $DOCKER compose up -d --no-deps cvgen
+            fi
+
+            wait_for_health() {
+              service="$1"
+              container_id="$($DOCKER compose ps -q "$service")"
+              for attempt in $(seq 1 60); do
+                if [ "$($DOCKER inspect -f '{{.State.Health.Status}}' "$container_id")" = healthy ]; then
+                  return 0
+                fi
+                if [ "$attempt" = 60 ]; then
+                  $DOCKER compose logs --tail=100 "$service"
+                  return 1
+                fi
+                sleep 5
+              done
+            }
+
+            if [ "$api_changed" = true ]; then wait_for_health backend; fi
+            if [ "$cvgen_changed" = true ]; then wait_for_health cvgen; fi
+
+            printf '%s\n' "$current_sha" > .deploy-sha
+            printf '%s\n' "$env_hash" > .env.sha256
+            echo "Deployment complete: $current_sha"
