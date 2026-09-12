@@ -38,6 +38,14 @@ def build_sample_payload(cv_id: str, name: str, profile_image_url: str = "") -> 
             "Docker and Kubernetes Administration",
         ],
         "personality_score": 8,
+        "assessment": [
+            4, 5, 4, 5, 4, 3,
+            4, 3, 5, 4, 4, 5,
+            3, 2, 4, 5, 4, 4,
+            5, 4, 5, 3, 4, 4,
+            4, 5, 3, 4, 4, 5,
+            5, 4, 5, 4, 3, 5,
+        ],
         "experience": [
             {
                 "date": "(2022 - Present)",

@@ -37,7 +37,7 @@
 
   .personality-page {
     width: 794px;
-    min-height: 1123px;
+    min-height: 1020px;
     margin-top: 40px;
     padding: 50px 40px;
     background: #f0ede8;
@@ -735,8 +735,7 @@
 
 {% if personality_graphs.polygon and personality_graphs.horizontal_bar %}
 <section class="personality-page">
-  <h2>Personality Assessment</h2>
-  <p>Assessment results across the measured personality dimensions.</p>
+  <!-- <h2>Personality Assessment</h2> -->
   <img class="personality-chart" src="{{ personality_graphs.polygon }}" alt="Personality radar chart"/>
   <img class="personality-chart" src="{{ personality_graphs.horizontal_bar }}" alt="Personality score bar chart"/>
 </section>
