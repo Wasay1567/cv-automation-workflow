@@ -7,5 +7,6 @@ python-dotenv
 boto3
 botocore
 requests
+matplotlib
 stream-zip
 zipstream-ng

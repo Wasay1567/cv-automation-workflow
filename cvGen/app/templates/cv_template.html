@@ -35,6 +35,37 @@
     box-shadow: 0 8px 40px rgba(0,0,0,.25);
   }
 
+  .personality-page {
+    width: 794px;
+    min-height: 1123px;
+    margin-top: 40px;
+    padding: 50px 40px;
+    background: #f0ede8;
+    page-break-before: always;
+    box-shadow: 0 8px 40px rgba(0,0,0,.25);
+  }
+
+  .personality-page h2 {
+    color: #023685;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 26px;
+    margin-bottom: 10px;
+  }
+
+  .personality-page p {
+    color: #4b4641;
+    font-size: 13px;
+    margin-bottom: 24px;
+  }
+
+  .personality-chart {
+    display: block;
+    width: 100%;
+    height: 440px;
+    object-fit: contain;
+    margin-bottom: 25px;
+  }
+
   .sidebar {
     width: 280px;
     flex-shrink: 0;
@@ -701,6 +732,15 @@
     </div>
   </main>
 </div>
+
+{% if personality_graphs.polygon and personality_graphs.horizontal_bar %}
+<section class="personality-page">
+  <h2>Personality Assessment</h2>
+  <p>Assessment results across the measured personality dimensions.</p>
+  <img class="personality-chart" src="{{ personality_graphs.polygon }}" alt="Personality radar chart"/>
+  <img class="personality-chart" src="{{ personality_graphs.horizontal_bar }}" alt="Personality score bar chart"/>
+</section>
+{% endif %}
 
 </body>
 </html>

@@ -290,6 +290,7 @@ def _build_pdf_payload(cv: CVSubmission, ai: dict[str, str]) -> dict[str, Any]:
         "about_me": ai.get("summary") or "",
         "profile_image_url": cv.student_image_url or "",
         "personality_score": _personality_score(cv),
+        "assessment": cv.assessment or [],
         "skills": [{"name": s.name} for s in cv.skills if s.name],
         "experience": [
             {

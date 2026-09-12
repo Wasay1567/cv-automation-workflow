@@ -3,6 +3,7 @@ from pathlib import Path
 from functools import lru_cache
 import asyncio
 import base64
+import io
 import logging
 import mimetypes
 import sys
@@ -17,6 +18,7 @@ from playwright.sync_api import sync_playwright
 import requests
 
 from app.core.config import AWS_ACCESS_KEY_ID, AWS_REGION, AWS_S3_BUCKET_NAME, AWS_SECRET_ACCESS_KEY
+from app.services.graphs import generate_personality_graphs
 
 BASE_DIR = Path(__file__).resolve().parent
 TEMPLATE_DIR = BASE_DIR.parent / "templates"
@@ -248,6 +250,19 @@ def _build_template_payload(data: dict[str, Any]) -> dict[str, Any]:
             }
         )
 
+    personality_graphs = {}
+    assessment = data.get("assessment") or []
+    if assessment:
+        try:
+            graph_buffers = generate_personality_graphs(assessment)
+            for name, buffer in graph_buffers.items():
+                encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
+                personality_graphs[name] = f"data:image/png;base64,{encoded}"
+            for buffer in graph_buffers.values():
+                buffer.close()
+        except ValueError:
+            logger.warning("Skipping personality graphs because assessment data is invalid")
+
     return {
         "student_id": data.get("student_id", ""),
         "name": data.get("name", ""),
@@ -261,6 +276,7 @@ def _build_template_payload(data: dict[str, Any]) -> dict[str, Any]:
         "languages": data.get("languages") or [],
         "certificates": data.get("certificates") or [],
         "personality_score": data.get("personality_score"),
+        "personality_graphs": personality_graphs,
         "experience": experience,
         "education": education,
     }

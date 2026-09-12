@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 
@@ -39,5 +39,6 @@ class CVRequest(BaseModel):
     languages: Optional[List[dict]] = None
     certificates: Optional[List[str]] = None
     personality_score: Optional[int] = None
+    assessment: List[int] = Field(default_factory=list)
     experience: List[Experience]
     education: List[Education]
