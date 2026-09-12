@@ -1,4 +1,8 @@
+import matplotlib
 import numpy as np
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 
 
@@ -72,12 +76,5 @@ def create_polygon_graph(category_scores, title="Personality Assessment"):
     #     fontweight="bold",
     #     pad=30
     # )
-
-    # Save graph locally
-    plt.savefig(
-        "personality_graph.png",
-        dpi=150,
-        bbox_inches="tight"
-    )
 
     return fig

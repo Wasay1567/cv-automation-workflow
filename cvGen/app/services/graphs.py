@@ -1,9 +1,13 @@
 import io
+import threading
 import matplotlib.pyplot as plt
 from .demographbargraph import create_horizontal_bar_graph
 from .demographpolygon import create_polygon_graph
 
 import numpy as np
+
+
+_GRAPH_LOCK = threading.Lock()
 
 
 def generate_personality_graphs(questions):
@@ -56,36 +60,35 @@ def generate_personality_graphs(questions):
 
         category_scores[category] = round(percentage_score, 2)
 
-    # Create both graphs
-    polygon_fig = create_polygon_graph(
-        category_scores,
-        title="Personality Assessment"
-    )
+    # Matplotlib's pyplot state is process-global and not thread-safe.
+    with _GRAPH_LOCK:
+        polygon_fig = create_polygon_graph(
+            category_scores,
+            title="Personality Assessment"
+        )
 
-    bar_fig = create_horizontal_bar_graph(
-        category_scores,
-        title="Overall Scores"
-    )
+        bar_fig = create_horizontal_bar_graph(
+            category_scores,
+            title="Overall Scores"
+        )
 
-    # Create in-memory buffers
-    polygon_buffer = io.BytesIO()
-    bar_buffer = io.BytesIO()
+        polygon_buffer = io.BytesIO()
+        bar_buffer = io.BytesIO()
 
-    # Save figures into buffers
-    polygon_fig.savefig(
-        polygon_buffer,
-        format="png",
-        bbox_inches="tight"
-    )
+        polygon_fig.savefig(
+            polygon_buffer,
+            format="png",
+            bbox_inches="tight"
+        )
 
-    bar_fig.savefig(
-        bar_buffer,
-        format="png",
-        bbox_inches="tight"
-    )
+        bar_fig.savefig(
+            bar_buffer,
+            format="png",
+            bbox_inches="tight"
+        )
 
-    plt.close(polygon_fig)
-    plt.close(bar_fig)
+        plt.close(polygon_fig)
+        plt.close(bar_fig)
 
     # Move pointer to beginning
     polygon_buffer.seek(0)

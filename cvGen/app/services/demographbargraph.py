@@ -1,3 +1,7 @@
+import matplotlib
+
+matplotlib.use("Agg")
+
 import matplotlib.pyplot as plt
 
 
@@ -94,12 +98,5 @@ def create_horizontal_bar_graph(
     )
 
     plt.tight_layout()
-
-    # Save graph
-    plt.savefig(
-        "overall_scores.png",
-        dpi=150,
-        bbox_inches="tight"
-    )
 
     return fig

@@ -252,16 +252,18 @@ def _build_template_payload(data: dict[str, Any]) -> dict[str, Any]:
 
     personality_graphs = {}
     assessment = data.get("assessment") or []
+    graph_buffers = {}
     if assessment:
         try:
             graph_buffers = generate_personality_graphs(assessment)
             for name, buffer in graph_buffers.items():
                 encoded = base64.b64encode(buffer.getvalue()).decode("ascii")
                 personality_graphs[name] = f"data:image/png;base64,{encoded}"
-            for buffer in graph_buffers.values():
-                buffer.close()
         except ValueError:
             logger.warning("Skipping personality graphs because assessment data is invalid")
+        finally:
+            for buffer in graph_buffers.values():
+                buffer.close()
 
     return {
         "student_id": data.get("student_id", ""),
