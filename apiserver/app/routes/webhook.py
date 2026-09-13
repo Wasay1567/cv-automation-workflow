@@ -1,3 +1,23 @@
+import os
+from fastapi import APIRouter, Request, HTTPException, Depends
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+from svix.webhooks import Webhook, WebhookVerificationError
+
+from app.database import get_db
+from app.models import User, UserRole, UserStatus
+
+router = APIRouter()
+
+CLERK_WEBHOOK_SECRET = os.getenv("CLERK_WEBHOOK_SECRET")
+UNIVERSITY_EMAIL_DOMAIN = "@cloud.neduet.edu.pk"
+
+
+def is_university_email(email: str) -> bool:
+    return email.lower().endswith(UNIVERSITY_EMAIL_DOMAIN)
+
+
 @router.post("/webhooks/clerk")
 async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
 
@@ -260,4 +280,5 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             "event_type": event_type,
         }
 
+    return {"status": "success"}
     return {"status": "success"}
