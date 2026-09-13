@@ -25,7 +25,17 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail="CLERK_WEBHOOK_SECRET is not configured")
 
     payload = await request.body()
-    headers = request.headers
+    
+    # CHANGED: Convert FastAPI Headers object to standard Python dict for Svix compatibility
+    headers = dict(request.headers)
+
+    # CHANGED: Explicitly check that mandatory Svix headers exist before attempting verification
+    svix_id = headers.get("svix-id")
+    svix_timestamp = headers.get("svix-timestamp")
+    svix_signature = headers.get("svix-signature")
+
+    if not all([svix_id, svix_timestamp, svix_signature]):
+        raise HTTPException(status_code=400, detail="Missing required Svix headers")
 
     # Verify webhook signature
     try:
@@ -34,7 +44,15 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     except WebhookVerificationError:
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
-    event_type = event["type"]
+    # CHANGED: Added guard clause to prevent TypeError when event is None
+    if not event or not isinstance(event, dict):
+        raise HTTPException(status_code=400, detail="Invalid or empty webhook payload")
+
+    # CHANGED: Safe access with .get() instead of event["type"]
+    event_type = event.get("type")
+    if not event_type:
+        raise HTTPException(status_code=400, detail="Missing event type in payload")
+
     data = event.get("data", {})
 
     clerk_user_id = data.get("id")
@@ -82,7 +100,6 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
             select(User).where(User.clerk_user_id == clerk_user_id)
         )
         existing_user = existing_result.scalar_one_or_none()
-        print(existing_user)
 
         if existing_user:
             existing_user.email = email
@@ -108,7 +125,6 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
         except IntegrityError:
             await db.rollback()
             raise HTTPException(status_code=409, detail="User data violates database constraints")
-        print(f"Created user {email} with role {role.value} and status {status.value}")
 
     # ============================
     # USER UPDATED
