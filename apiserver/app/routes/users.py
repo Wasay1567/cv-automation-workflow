@@ -22,6 +22,7 @@ router = APIRouter(
 
 
 @router.get("/profiles")
+@router.get("/users/profile")
 async def get_profile(user: User = Depends(get_current_user)):
     return {
         "id": str(user.id),
