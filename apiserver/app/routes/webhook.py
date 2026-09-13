@@ -1,4 +1,5 @@
 import os
+import json
 from fastapi import APIRouter, Request, HTTPException, Depends
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -40,12 +41,16 @@ async def clerk_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     # Verify webhook signature
     try:
         wh = Webhook(CLERK_WEBHOOK_SECRET)
-        event = wh.verify(payload, headers)
+        wh.verify(payload, headers)
     except WebhookVerificationError:
         raise HTTPException(status_code=400, detail="Invalid webhook signature")
 
-    # CHANGED: Added guard clause to prevent TypeError when event is None
-    if not event or not isinstance(event, dict):
+    try:
+        event = json.loads(payload)
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        raise HTTPException(status_code=400, detail="Invalid JSON webhook payload")
+
+    if not isinstance(event, dict):
         raise HTTPException(status_code=400, detail="Invalid or empty webhook payload")
 
     # CHANGED: Safe access with .get() instead of event["type"]
