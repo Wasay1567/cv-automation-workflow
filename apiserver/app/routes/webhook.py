@@ -1,4 +1,3 @@
-```python
 import os
 
 from fastapi import APIRouter, Request, HTTPException, Depends
