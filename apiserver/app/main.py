@@ -15,12 +15,13 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://cv-streamline-flow.vercel.app",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
     allow_credentials=True,
 )
-
 
 @app.on_event("startup")
 async def startup_event():
