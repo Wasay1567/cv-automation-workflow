@@ -1,7 +1,7 @@
 import os
 import json
 from fastapi import APIRouter, Request, HTTPException, Depends
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from svix.webhooks import Webhook, WebhookVerificationError
@@ -197,6 +197,22 @@ async def clerk_webhook(
 
         except IntegrityError:
             await db.rollback()
+
+            duplicate_result = await db.execute(
+                select(User).where(
+                    or_(
+                        User.clerk_user_id == clerk_user_id,
+                        User.email == email,
+                    )
+                )
+            )
+            duplicate_user = duplicate_result.scalars().first()
+
+            if duplicate_user and duplicate_user.clerk_user_id == clerk_user_id:
+                return {
+                    "status": "success",
+                    "message": "Duplicate webhook delivery already processed",
+                }
 
             raise HTTPException(
                 status_code=409,
