@@ -339,6 +339,11 @@ async def _generate_cv_pdf_and_store_file_id(cv_id: UUID) -> None:
 
             ai_result = await run_in_threadpool(_get_ai_summary_and_title, _serialize_cv(cv))
             payload = _build_pdf_payload(cv, ai_result)
+            logger.info(
+                "Prepared PDF payload for cv_id=%s with %d assessment scores",
+                cv_id,
+                len(payload["assessment"]),
+            )
 
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(f"{PDF_SERVICE_URL}/generate-pdf", json=payload)
@@ -611,6 +616,13 @@ async def create_cv(
             await db.rollback()
             logger.exception("Failed to clean up duplicate CVs for student_id=%s", current_user.id)
 
+    # Reload relationships before synchronous serialization after any commit.
+    refreshed_result = await db.execute(
+        select(CVSubmission)
+        .options(*_cv_load_options())
+        .where(CVSubmission.cv_id == cv.cv_id)
+    )
+    cv = refreshed_result.scalar_one()
     return _serialize_cv(cv)
 
 
