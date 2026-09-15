@@ -25,8 +25,8 @@ def generate_personality_graphs(questions):
             Dictionary containing both image buffers.
     """
 
-    if len(questions) != 36:
-        raise ValueError("Exactly 36 ratings are required.")
+    if len(questions) != 39:
+        raise ValueError("Exactly 39 ratings are required.")
     if any(not isinstance(score, (int, float)) or not 1 <= score <= 5 for score in questions):
         raise ValueError("Personality ratings must be numbers between 1 and 5.")
 
@@ -42,7 +42,8 @@ def generate_personality_graphs(questions):
         "Learning Agility": (24, 27),       # Q25-Q27
         "Digital Adaptability": (27, 30),   # Q28-Q30
         "Ethical Integrity": (30, 33),      # Q31-Q33
-        "Team Collaboration": (33, 36)      # Q34-Q36
+        "Initiative and Ownership": (33, 36), # Q34-36
+        "Team Collaboration": (36, 39)      # Q37-Q39
     }
 
     category_scores = {}
