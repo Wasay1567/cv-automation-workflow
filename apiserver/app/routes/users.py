@@ -44,6 +44,7 @@ async def get_deadline(
 
 
 @router.post("/user/sync")
+@router.post("/users/sync")
 async def sync_user_data(
     req: SyncUserRequest,
     db: AsyncSession = Depends(get_db),
