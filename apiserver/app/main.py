@@ -13,16 +13,6 @@ app = FastAPI(
     version="1.0.0",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "https://cv-streamline-flow.vercel.app",
-    ],
-    allow_methods=["*"],
-    allow_headers=["*"],
-    allow_credentials=True,
-)
-
 @app.on_event("startup")
 async def startup_event():
     init_db()
@@ -35,6 +25,14 @@ app.include_router(cv_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
 app.include_router(webhook_router)
+
+app = CORSMiddleware(
+    app=app,
+    allow_origins=["https://cv-streamline-flow.vercel.app"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+    allow_credentials=True,
+)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

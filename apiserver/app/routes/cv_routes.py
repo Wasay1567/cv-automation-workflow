@@ -251,6 +251,17 @@ async def get_my_cvs(
     return await cv_controller.handle_get_student_cvs(user, db)
 
 
+@router.put("/me")
+async def update_my_cv(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    payload_data, image_file = await _parse_cv_request(request)
+    payload = CVCreateRequest.model_validate(payload_data)
+    return await cv_controller.handle_update_student_cv(user, db, payload.model_dump(), image_file)
+
+
 @router.get("/{cv_id}")
 async def get_cv(
     cv_id: str,

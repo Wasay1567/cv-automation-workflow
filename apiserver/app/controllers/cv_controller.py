@@ -53,6 +53,22 @@ async def handle_get_student_cvs(current_user: User, db: AsyncSession) -> list:
     return await cv_service.get_student_cvs(current_user, db)
 
 
+async def handle_update_student_cv(
+    current_user: User,
+    db: AsyncSession,
+    data: dict,
+    student_image_file: UploadFile | None = None,
+) -> dict:
+    _ensure_student(current_user)
+    updated = await cv_service.update_student_cv(data, current_user, db, student_image_file)
+    if updated is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No CV found for the current student",
+        )
+    return updated
+
+
 async def handle_update_cv(
     cv_id: str,
     data: dict,

@@ -152,6 +152,9 @@ List CVs (admin/advisor only). Returns full CV objects with an additional `summa
 ### `GET /api/cv-submissions/me`
 List current student CVs. Returns full CV objects.
 
+### `PUT /api/cv-submissions/me`
+Update the current student's latest CV. Returns the updated full CV object.
+
 ### `GET /api/cv-submissions/{cv_id}`
 Get one CV by ID. Returns full CV object.
 

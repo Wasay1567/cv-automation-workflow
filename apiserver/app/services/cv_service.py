@@ -715,6 +715,24 @@ async def update_cv(
     return _serialize_cv(refreshed) if refreshed else None
 
 
+async def update_student_cv(
+    data: dict[str, Any],
+    current_user: User,
+    db: AsyncSession,
+    student_image_file: Any | None = None,
+) -> dict[str, Any] | None:
+    result = await db.execute(
+        select(CVSubmission.cv_id)
+        .where(CVSubmission.student_id == current_user.id)
+        .order_by(CVSubmission.updated_at.desc())
+    )
+    cv_id = result.scalar_one_or_none()
+    if cv_id is None:
+        return None
+
+    return await update_cv(str(cv_id), data, current_user, db, student_image_file)
+
+
 async def delete_cv(cv_id: str, current_user: User, db: AsyncSession) -> bool:
     result = await db.execute(
         select(CVSubmission).where(CVSubmission.cv_id == cv_id, CVSubmission.student_id == current_user.id)
