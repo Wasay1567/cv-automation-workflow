@@ -41,6 +41,8 @@ The `main` branch runs CI before deployment. CI compiles both Python services, v
 - Installs Docker if the host is new and clones the repository if it is missing.
 - Writes the GitHub secret `APP_ENV` to the host's `.env` file with restrictive permissions.
 - Starts PostgreSQL once and waits for its health check. The named `postgres_data` volume is never removed by the workflow.
+- On a new PostgreSQL volume, restores `s3://${BACKUP_S3_BUCKET}/${BACKUP_S3_PREFIX}/latest.dump` before migrations.
+- Installs a daily systemd backup timer that uploads one raw PostgreSQL dump to S3 at 11:00 PM Pakistan time (18:00 UTC). Each run replaces the previous object.
 - Runs `alembic upgrade head` as a disposable backend container on the initial deployment or when `apiserver/alembic/` changes.
 - Rebuilds and recreates only `backend` for API changes and only `cvgen` for generator changes. Environment changes recreate both application services, but never deliberately recreate PostgreSQL.
 
@@ -50,5 +52,9 @@ Create these GitHub repository secrets:
 - `EC2_USER`: SSH user with Docker access or passwordless `sudo`.
 - `EC2_SSH_KEY`: private SSH key for that user.
 - `APP_ENV`: the complete contents of the production `.env` file, based on `.env.example`.
+
+The production `.env` must also define `BACKUP_S3_BUCKET`. `BACKUP_S3_PREFIX` is optional and defaults to `postgres`. The backup prefix is kept to one object: `latest.dump`. The EC2 instance needs basic S3 access to get, put, list, and delete objects in that prefix. Do not put AWS access keys in `APP_ENV` unless you are deliberately using credentials for this test deployment.
+
+The single `latest.dump` contains the PostgreSQL schema and application data. It is a logical backup created with `pg_dump`, rather than a copy of the live Docker volume. The deployment restores only when `public.alembic_version` does not exist, so ordinary deployments never overwrite an existing database.
 
 The EC2 security group should expose only the application ports required by clients (`8000` and, if direct cvGen access is needed, `8080`). PostgreSQL is internal to the Compose network and is not published to the host. Configure regular backups for the `postgres_data` volume; persistence prevents container recreation from deleting data, but it is not a backup strategy.

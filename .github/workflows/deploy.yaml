@@ -77,6 +77,11 @@ jobs:
               exit 1
             fi
 
+            if ! command -v aws >/dev/null 2>&1; then
+              sudo apt-get update
+              sudo apt-get install -y awscli
+            fi
+
             if [ ! -d "$APP_DIR/.git" ]; then
               mkdir -p "$(dirname "$APP_DIR")"
               if [ -e "$APP_DIR" ]; then
@@ -153,6 +158,10 @@ jobs:
               fi
               sleep 5
             done
+
+            chmod 0755 scripts/postgres-backup.sh scripts/restore-postgres-backup.sh scripts/install-postgres-backup-timer.sh
+            APP_DIR="$APP_DIR" DOCKER="$DOCKER" scripts/restore-postgres-backup.sh
+            APP_DIR="$APP_DIR" scripts/install-postgres-backup-timer.sh
 
             if [ "$api_changed" = true ] || [ "$migrations_changed" = true ]; then
               $DOCKER compose build backend
