@@ -35,7 +35,7 @@ cat > "$timer_file" <<EOF
 Description=Daily CV PostgreSQL S3 backup
 
 [Timer]
-OnCalendar=*-*-* 18:00:00 UTC
+OnCalendar=*-*-* 18:30:00 UTC
 Persistent=true
 
 [Install]

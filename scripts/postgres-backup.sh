@@ -9,11 +9,16 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
-set -a
-# shellcheck disable=SC1091
-. ./.env
-set +a
+env_value() {
+  awk -F= -v key="$1" '$1 == key {sub(/^[^=]*=/, ""); print; exit}' .env
+}
 
+POSTGRES_USER="$(env_value POSTGRES_USER)"
+POSTGRES_DB="$(env_value POSTGRES_DB)"
+BACKUP_S3_BUCKET="$(env_value BACKUP_S3_BUCKET)"
+BACKUP_S3_PREFIX="$(env_value BACKUP_S3_PREFIX)"
+: "${POSTGRES_USER:=postgres}"
+: "${POSTGRES_DB:=cv_db}"
 : "${BACKUP_S3_BUCKET:?BACKUP_S3_BUCKET is required in .env}"
 BACKUP_S3_PREFIX="${BACKUP_S3_PREFIX:-postgres}"
 DOCKER="${DOCKER:-docker}"

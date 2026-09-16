@@ -54,7 +54,6 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           envs: APP_ENV,DEPLOY_BRANCH,DEPLOY_REPOSITORY,DEPLOY_TOKEN
-          script_stop: true
           script: |
             set -Eeuo pipefail
 
