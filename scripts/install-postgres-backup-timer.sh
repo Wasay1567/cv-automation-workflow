@@ -26,6 +26,7 @@ Requires=docker.service
 [Service]
 Type=oneshot
 User=$(id -un)
+Environment=APP_DIR=$APP_DIR
 WorkingDirectory=$APP_DIR
 ExecStart=/usr/local/bin/${SERVICE_NAME}.sh
 EOF
@@ -45,6 +46,7 @@ EOF
 $SUDO install -m 0644 "$service_file" "$SYSTEMD_DIR/${SERVICE_NAME}.service"
 $SUDO install -m 0644 "$timer_file" "$SYSTEMD_DIR/${SERVICE_NAME}.timer"
 $SUDO systemctl daemon-reload
-$SUDO systemctl enable --now "${SERVICE_NAME}.timer"
+$SUDO systemctl enable "${SERVICE_NAME}.timer"
+$SUDO systemctl restart "${SERVICE_NAME}.timer"
 
 echo "Installed daily PostgreSQL backup timer."

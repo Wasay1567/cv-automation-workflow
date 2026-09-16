@@ -17,10 +17,23 @@ POSTGRES_USER="$(env_value POSTGRES_USER)"
 POSTGRES_DB="$(env_value POSTGRES_DB)"
 BACKUP_S3_BUCKET="$(env_value BACKUP_S3_BUCKET)"
 BACKUP_S3_PREFIX="$(env_value BACKUP_S3_PREFIX)"
+AWS_ACCESS_KEY_ID="$(env_value AWS_ACCESS_KEY_ID)"
+AWS_SECRET_ACCESS_KEY="$(env_value AWS_SECRET_ACCESS_KEY)"
+AWS_SESSION_TOKEN="$(env_value AWS_SESSION_TOKEN)"
+AWS_REGION="$(env_value AWS_REGION)"
 : "${POSTGRES_USER:=postgres}"
 : "${POSTGRES_DB:=cv_db}"
 : "${BACKUP_S3_BUCKET:?BACKUP_S3_BUCKET is required in .env}"
 BACKUP_S3_PREFIX="${BACKUP_S3_PREFIX:-postgres}"
+
+if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
+  export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
+  [ -z "$AWS_SESSION_TOKEN" ] || export AWS_SESSION_TOKEN
+fi
+if [ -n "$AWS_REGION" ]; then
+  export AWS_REGION AWS_DEFAULT_REGION="$AWS_REGION"
+fi
+
 DOCKER="${DOCKER:-docker}"
 if ! $DOCKER info >/dev/null 2>&1 && sudo docker info >/dev/null 2>&1; then
   DOCKER="sudo docker"
