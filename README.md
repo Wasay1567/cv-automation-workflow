@@ -53,7 +53,7 @@ Create these GitHub repository secrets:
 - `EC2_SSH_KEY`: private SSH key for that user.
 - `APP_ENV`: the complete contents of the production `.env` file, based on `.env.example`.
 
-The production `.env` must also define `BACKUP_S3_BUCKET`. `BACKUP_S3_PREFIX` is optional and defaults to `postgres`. The backup prefix is kept to one object: `latest.dump`. For a simple test deployment, set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_REGION` in `APP_ENV`; the scripts pass these values to AWS CLI for both backup and restore. Alternatively, an EC2 IAM role can provide the credentials when the key fields are empty.
+The production `.env` must also define `BACKUP_S3_BUCKET`. `BACKUP_S3_PREFIX` is optional and defaults to `postgres`. The backup prefix is kept to one object: `latest.dump`. For a simple test deployment, set `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and `AWS_REGION` in `APP_ENV`; the scripts pass these values to AWS CLI for both backup and restore. Alternatively, an EC2 IAM role can provide the credentials when the key fields are empty. The required S3 access is only `GetObject` and `PutObject` for this single key.
 
 The single `latest.dump` contains the PostgreSQL schema and application data. It is a logical backup created with `pg_dump`, rather than a copy of the live Docker volume. The deployment restores only when `public.alembic_version` does not exist, so ordinary deployments never overwrite an existing database.
 

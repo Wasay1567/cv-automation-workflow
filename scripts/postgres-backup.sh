@@ -53,17 +53,4 @@ $DOCKER compose exec -T db pg_dump \
 
 aws s3 cp "$tmp_file" "$latest_uri" --only-show-errors
 
-# Keep exactly one object in this dedicated backup prefix.
-aws s3api list-objects-v2 \
-  --bucket "$BACKUP_S3_BUCKET" \
-  --prefix "${BACKUP_S3_PREFIX}/" \
-  --query 'Contents[].Key' \
-  --output text \
-  | tr '\t' '\n' \
-  | while IFS= read -r key; do
-      if [ -n "$key" ] && [ "$key" != "$latest_key" ]; then
-        aws s3 rm "s3://${BACKUP_S3_BUCKET}/${key}" --only-show-errors
-      fi
-    done
-
 echo "Backup uploaded to ${latest_uri}"
